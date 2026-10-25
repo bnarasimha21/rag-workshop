@@ -1,4 +1,4 @@
-from langchain_community.document_loaders import OnlinePDFLoader
+import os
 from langchain_community.vectorstores import Chroma
 from langchain_community.embeddings import GPT4AllEmbeddings
 from langchain_core.prompts import PromptTemplate
@@ -10,9 +10,8 @@ import gradio as gr
 #documents = loader.load()
 from langchain_community.document_loaders import PyPDFLoader
 
-file_path = (
-    "3rd module notes.pdf"
-)
+# Resolve relative to this script so it works from any working directory
+file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "3rd module notes.pdf")
 loader = PyPDFLoader(file_path)
 documents = loader.load()
 

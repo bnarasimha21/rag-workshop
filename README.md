@@ -25,6 +25,7 @@ Hands-on workshop materials for building a Retrieval-Augmented Generation (RAG) 
 
 - [Ollama](https://ollama.com/) installed and running locally
 - Gemma model pulled: `ollama pull gemma`
+- Internet access on first run: `GPT4AllEmbeddings` (from the `gpt4all` package) downloads its embedding model the first time it is used
 
 ## Setup / Installation
 
@@ -33,6 +34,8 @@ git clone https://github.com/bnarasimha21/rag-workshop.git
 cd rag-workshop
 pip install -r requirements.txt
 ```
+
+Run it from anywhere; the script locates `3rd module notes.pdf` next to itself.
 
 ## Usage
 

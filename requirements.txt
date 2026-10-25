@@ -6,4 +6,6 @@ pypdf
 sentence_transformers
 langchain
 langchain-community
+gpt4all
+langchain-core
 sentencepiece
