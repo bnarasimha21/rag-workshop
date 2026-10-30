@@ -1,1 +1,5 @@
-/venv
+.venv/
+.rag_index/
+__pycache__/
+*.pyc
+.pytest_cache/
