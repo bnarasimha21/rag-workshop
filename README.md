@@ -76,6 +76,34 @@ Things worth noticing while you read:
 - **The index persists.** Ingest stores a manifest with the PDF's SHA-256 and the settings that affect the index. Running it again with the same PDF and settings prints `Index is up to date ... skipping embedding.` Changing the PDF or a setting such as chunk size builds a new index in its own folder. `python -m rag.ingest --force` rebuilds anyway.
 - **Task prefixes matter.** `nomic-embed-text` was trained with `search_query: ` and `search_document: ` prefixes, and retrieves worse without them. `rag/models.py` adds them.
 
+## Measuring it: evals
+
+A RAG change is only an improvement if you can measure it. `evals/golden.jsonl` holds 30 questions written from the PDF: 25 answerable ones, each with the printed page numbers that contain the answer and a reference answer, and 5 the PDF cannot answer (tagged `unanswerable`). They cover every section: data types (p1 to 2), urgency levels (p3), processing topologies (p4 to 7), device design factors (p8 to 9), offload locations (p11 to 12), decision approaches (p13 to 14) and offloading considerations (p14 to 15).
+
+Retrieval and generation are measured separately, because they fail for different reasons:
+
+```bash
+python -m evals.retrieval            # Recall@1/3/5 and MRR, no LLM needed
+python -m evals.answers              # faithfulness and correctness, judged by an LLM
+python -m evals.experiments baseline # both, written to evals/results/baseline.md
+```
+
+- **Recall@k**: of the pages that hold the answer, the share found in the top k chunks.
+- **MRR**: 1 / the rank of the first chunk from a correct page, averaged.
+- **Faithfulness**: is every claim in the answer supported by the retrieved chunks? (Scored only for answered questions.)
+- **Correctness**: does the answer state the facts in the reference answer? For unanswerable questions, a refusal is correct.
+
+The judge is a short hand-written prompt (`evals/judge.py`) that asks for one word, YES, PARTLY or NO, rather than Ragas. Ragas asks the judge for multi-step JSON that 2B models often break, and a one-line prompt is easier for learners to read. **Small local judges are noisy**: while building this, `gemma2:2b` graded most fully correct answers as PARTLY until the prompt said extra detail is fine, and `qwen2.5:1.5b` said YES to everything. Read the scores as a trend over the whole set, and spot-check a sample with a stronger hosted judge before trusting a small difference:
+
+```bash
+pip install langchain-anthropic   # or langchain-openai
+python -m evals.answers --judge anthropic --judge-model <model name>   # API key from the environment
+```
+
+Every command also takes `--offline` to use the stand-in models (see the tests section); those numbers land in `evals/results/offline/` and measure the plumbing, not model quality.
+
+**Continuous integration.** `.github/workflows/eval.yml` runs the offline test suite and an offline retrieval gate on every push and pull request. A second job installs Ollama on the runner, pulls only `nomic-embed-text`, ingests the PDF and fails the build if Recall@5 drops below the baseline committed in `evals/baselines.json` (`python -m evals.retrieval --check-baseline`). Answer evals need a chat model and a judge, which is slow and noisy on a CI runner, so they run only when started by hand (`workflow_dispatch`). `tests/test_evals_integration.py` proves the gate fails when retrieval is broken (k=1 over a shuffled index).
+
 ## Configuration
 
 Every field of `RagConfig` in `rag/config.py` can be set with an environment variable:
