@@ -14,17 +14,18 @@ from conftest import REPO, free_port
 
 def test_handler_answers_without_a_server(offline_cfg):
     handle = make_handler(offline_cfg())
-    assert handle("   ") == ("Please type a question.", "")
-    answer, sources = handle("What is fog computing?")
+    assert handle("   ") == ("Please type a question.", "", "")
+    answer, sources, trace = handle("What is fog computing?")
+    assert "retrieve" in trace and "generate" in trace and "total" in trace
     assert answer.strip()
     assert "page 12" in sources
 
 
 def test_sources_panel_shows_original_chunk_text_and_refusal_reason(offline_cfg):
     handle = make_handler(offline_cfg())
-    _, sources = handle("What is fog computing?")
+    _, sources, _ = handle("What is fog computing?")
     assert "Fog computing is a decentralized computing infrastructure" in sources
-    answer, sources = handle("How much does a Kubernetes cluster cost per hour on AWS?")
+    answer, sources, _ = handle("How much does a Kubernetes cluster cost per hour on AWS?")
     assert answer == offline_cfg().refusal_text
     assert sources.startswith("_No sources._")
 

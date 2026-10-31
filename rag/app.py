@@ -50,13 +50,14 @@ def make_handler(cfg: RagConfig):
             pipelines[key] = Pipeline(cfg.with_overrides(retrieval_mode=mode, rerank=bool(rerank)), index=base.index)
         return pipelines[key]
 
-    def handle(question: str, mode: str | None = None, rerank: bool | None = None) -> tuple[str, str]:
+    def handle(question: str, mode: str | None = None, rerank: bool | None = None) -> tuple[str, str, str]:
+        """Returns (answer, sources panel, trace panel), all Markdown."""
         question = (question or "").strip()
         if not question:
-            return "Please type a question.", ""
+            return "Please type a question.", "", ""
         pipeline = pipeline_for(mode or cfg.retrieval_mode, cfg.rerank if rerank is None else rerank)
         result = pipeline.answer(question)
-        return result.answer, format_sources(result)
+        return result.answer, format_sources(result), result.trace.as_markdown()
 
     return handle
 
@@ -76,9 +77,11 @@ def build_ui(cfg: RagConfig | None = None):
         answer = gr.Markdown(label="Answer")
         with gr.Accordion("Sources", open=True):
             sources = gr.Markdown()
-        inputs = [question, mode, rerank]
-        ask.click(handle, inputs=inputs, outputs=[answer, sources])
-        question.submit(handle, inputs=inputs, outputs=[answer, sources])
+        with gr.Accordion("Trace: time and tokens per stage", open=False):
+            trace = gr.Markdown()
+        inputs, outputs = [question, mode, rerank], [answer, sources, trace]
+        ask.click(handle, inputs=inputs, outputs=outputs)
+        question.submit(handle, inputs=inputs, outputs=outputs)
     return ui
 
 

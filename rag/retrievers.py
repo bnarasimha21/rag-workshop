@@ -132,26 +132,34 @@ def rerank(question: str, hits: list[Hit], top_n: int, reranker) -> list[Hit]:
     return out
 
 
-def retrieve(index: Index, question: str, cfg: RagConfig, k: int | None = None, reranker=None) -> list[Hit]:
+def retrieve(index: Index, question: str, cfg: RagConfig, k: int | None = None, reranker=None, trace=None) -> list[Hit]:
     """Run the retrieval stack chosen in ``cfg``: vector, bm25 or hybrid, then optionally rerank.
 
     With rerank on, the first stage returns ``candidate_k`` chunks and the
-    reranker keeps the best ``k``.
+    reranker keeps the best ``k``. Pass a ``rag.trace.Trace`` to time the
+    search and rerank steps separately.
     """
+    from contextlib import nullcontext
+
+    def stage(name):
+        return trace.stage(name) if trace is not None else nullcontext()
+
     k = k or cfg.k
     pool = max(cfg.candidate_k, k) if cfg.rerank else k
-    if cfg.retrieval_mode == "vector":
-        hits = vector_search(index, question, pool)
-    elif cfg.retrieval_mode == "bm25":
-        hits = bm25_search(index, question, pool)
-    elif cfg.retrieval_mode == "hybrid":
-        hits = hybrid_search(index, question, pool, pool=max(cfg.candidate_k, pool), rrf_k=cfg.rrf_k)
-    else:
+    if cfg.retrieval_mode not in ("vector", "bm25", "hybrid"):
         raise ValueError(f"unknown retrieval_mode {cfg.retrieval_mode!r}")
+    with stage("search"):
+        if cfg.retrieval_mode == "vector":
+            hits = vector_search(index, question, pool)
+        elif cfg.retrieval_mode == "bm25":
+            hits = bm25_search(index, question, pool)
+        else:
+            hits = hybrid_search(index, question, pool, pool=max(cfg.candidate_k, pool), rrf_k=cfg.rrf_k)
     if cfg.rerank:
-        if reranker is None:
-            from rag.models import make_reranker
+        with stage("rerank"):
+            if reranker is None:
+                from rag.models import make_reranker
 
-            reranker = make_reranker(cfg)
-        hits = rerank(question, hits, k, reranker)
+                reranker = make_reranker(cfg)
+            hits = rerank(question, hits, k, reranker)
     return hits

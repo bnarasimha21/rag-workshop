@@ -83,7 +83,7 @@ def test_low_relevance_skips_the_llm(offline_cfg):
     p = _pipeline_with(offline_cfg, "should never be used [1]", min_relevance=0.99)
     result = p.answer("What is fog computing?")
     assert result.refused and result.refusal_reason == "low_relevance"
-    assert "generate" not in result.timings
+    assert result.trace.ms("generate") is None
     assert result.raw_answer == ""
 
 

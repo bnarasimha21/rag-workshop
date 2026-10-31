@@ -6,7 +6,6 @@ server is started until you call ``answer()``.
 
 from __future__ import annotations
 
-import time
 from dataclasses import dataclass, field
 
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -16,6 +15,7 @@ from rag.config import RagConfig
 from rag.models import make_chat_model
 from rag.prompts import BASIC_PROMPT, GROUNDED_SYSTEM, GROUNDED_USER, format_passages
 from rag.retrievers import Hit, Index, retrieve, vector_search
+from rag.trace import Trace
 
 
 @dataclass
@@ -30,7 +30,7 @@ class RagResult:
     # answer) or "no_citations" (the LLM answered but cited nothing valid).
     refusal_reason: str | None = None
     raw_answer: str = ""  # what the LLM actually said, before any checks
-    timings: dict = field(default_factory=dict)  # stage name -> milliseconds
+    trace: Trace = field(default_factory=Trace)  # time and tokens per stage, see rag/trace.py
 
 
 class Pipeline:
@@ -60,20 +60,32 @@ class Pipeline:
             HumanMessage(GROUNDED_USER.format(passages=format_passages(chunks), question=question)),
         ]
 
-    def answer(self, question: str) -> RagResult:
+    def answer(self, question: str, clock=None) -> RagResult:
         cfg = self.cfg
-        timings = {}
-        t0 = time.perf_counter()
-        chunks = retrieve(self.index, question, cfg)
-        timings["retrieve"] = (time.perf_counter() - t0) * 1000
-        result = RagResult(question=question, answer="", chunks=chunks, timings=timings)
+        trace = Trace(price_per_1k_in=cfg.price_per_1k_tokens_in, price_per_1k_out=cfg.price_per_1k_tokens_out,
+                      **({"clock": clock} if clock else {}))
+        try:
+            return self._answer(question, trace)
+        finally:
+            trace.finish()
 
-        if cfg.grounded_prompt and self._too_far(question, chunks):
-            return self._refuse(result, "low_relevance")
+    def _answer(self, question: str, trace: Trace) -> RagResult:
+        cfg = self.cfg
+        with trace.stage("retrieve"):
+            chunks = retrieve(self.index, question, cfg, trace=trace)
+        result = RagResult(question=question, answer="", chunks=chunks, trace=trace)
 
-        t0 = time.perf_counter()
-        reply = self.llm.invoke(self.messages(question, chunks))
-        timings["generate"] = (time.perf_counter() - t0) * 1000
+        if cfg.grounded_prompt:
+            with trace.stage("relevance_gate"):
+                too_far = self._too_far(question, chunks)
+            if too_far:
+                return self._refuse(result, "low_relevance")
+
+        with trace.stage("generate") as stage:
+            reply = self.llm.invoke(self.messages(question, chunks))
+            usage = getattr(reply, "usage_metadata", None) or {}
+            stage.tokens_in = int(usage.get("input_tokens", 0))
+            stage.tokens_out = int(usage.get("output_tokens", 0))
         result.raw_answer = str(reply.content).strip()
 
         if not cfg.grounded_prompt:

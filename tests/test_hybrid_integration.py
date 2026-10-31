@@ -61,7 +61,7 @@ def test_every_mode_answers_end_to_end(offline_cfg, mode, rerank):
 def test_app_handler_switches_mode_and_rerank(offline_cfg):
     handle = make_handler(offline_cfg(retrieval_mode="vector", rerank=False))
     for mode, rerank in MODES:
-        answer, sources = handle("Explain the bargaining based approach.", mode, rerank)
+        answer, sources, _ = handle("Explain the bargaining based approach.", mode, rerank)
         assert "page 13" in sources, (mode, rerank, sources)
 
 

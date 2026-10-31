@@ -18,7 +18,6 @@ from __future__ import annotations
 import argparse
 import json
 import math
-import statistics
 import time
 import sys
 from dataclasses import dataclass, field
@@ -52,10 +51,17 @@ class RetrievalReport:
     per_question: list = field(default_factory=list)
 
     @property
-    def median_ms(self) -> float:
+    def p50_ms(self) -> float:
         """Median retrieval time per question, in milliseconds."""
-        times = [r["ms"] for r in self.per_question]
-        return statistics.median(times) if times else math.nan
+        from evals.report import percentile
+
+        return percentile((r["ms"] for r in self.per_question), 50)
+
+    @property
+    def p95_ms(self) -> float:
+        from evals.report import percentile
+
+        return percentile((r["ms"] for r in self.per_question), 95)
 
 
 def evaluate_retrieval(cfg: RagConfig, items: list[GoldenItem], index: Index | None = None, retriever=None) -> RetrievalReport:

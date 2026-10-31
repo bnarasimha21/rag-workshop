@@ -25,6 +25,7 @@ from pathlib import Path
 
 from evals import GoldenItem, load_golden, results_dir
 from evals.judge import make_judge
+from evals.report import percentile
 from rag.config import RagConfig, cli_config
 from rag.pipeline import Pipeline
 
@@ -65,6 +66,12 @@ def evaluate_answers(cfg: RagConfig, items: list[GoldenItem], judge, pipeline: P
             "retrieved_pages": " ".join(str(c.printed_page) for c in result.chunks),
             "faithfulness": faithfulness,
             "correctness": correctness,
+            "retrieve_ms": result.trace.ms("retrieve"),
+            "rerank_ms": result.trace.ms("rerank"),
+            "generate_ms": result.trace.ms("generate"),
+            "total_ms": result.trace.total_ms,
+            "tokens_in": result.trace.tokens_in,
+            "tokens_out": result.trace.tokens_out,
         })
     return summarize(rows), rows
 
@@ -82,6 +89,15 @@ def summarize(rows: list[dict]) -> dict:
         # Share of answerable questions that got an answer with at least one
         # valid citation. A refusal counts against it.
         "cited_rate_answerable": (sum(r["valid_citations"] > 0 for r in answerable) / len(answerable)) if answerable else math.nan,
+        # Per-stage latency over the questions where that stage ran.
+        "latency_ms": {
+            stage: {"p50": percentile(times, 50), "p95": percentile(times, 95)}
+            for stage in ("retrieve", "rerank", "generate", "total")
+            if (times := [r[f"{stage}_ms"] for r in rows if r.get(f"{stage}_ms") is not None])
+        },
+        # Tokens per question that reached the model.
+        "mean_tokens_in": _mean(r["tokens_in"] for r in rows if r.get("generate_ms") is not None),
+        "mean_tokens_out": _mean(r["tokens_out"] for r in rows if r.get("generate_ms") is not None),
     }
     return summary
 
