@@ -66,8 +66,9 @@ The code lives in the `rag/` package. Read it in this order:
 | Settings | `rag/config.py` | One `RagConfig` dataclass with every knob. Each field can be overridden with an environment variable `RAG_<FIELD>`. |
 | 1. Ingest | `rag/ingest.py` | Reads the PDF page by page, strips the running page header, splits each page into chunks of about 800 characters with 120 characters of overlap (`RecursiveCharacterTextSplitter`), embeds them and saves them in Chroma under `.rag_index/`. |
 | 2. Retrieve | `rag/retrievers.py` | Finds the `k` chunks whose embeddings are closest to the question's embedding. |
-| 3. Generate | `rag/pipeline.py` | Puts the chunks into a prompt and asks the chat model. `answer(question)` returns a `RagResult`. |
-| 4. UI | `rag/app.py` | A Gradio page around `Pipeline.answer`. Importing it starts nothing; the server starts in `main()`. |
+| 3. Generate | `rag/pipeline.py`, `rag/prompts.py` | Numbers the chunks `[1]`, `[2]` ... in a grounded prompt and asks the chat model. `answer(question)` returns a `RagResult`. |
+| 4. Cite | `rag/citations.py` | Turns the `[n]` markers in the answer into citations (chunk id, page, original text) and drops markers that point at nothing. |
+| 5. UI | `rag/app.py` | A Gradio page around `Pipeline.answer`, with a Sources panel showing each cited chunk. Importing it starts nothing; the server starts in `main()`. |
 
 Things worth noticing while you read:
 
@@ -75,6 +76,16 @@ Things worth noticing while you read:
 - **Every chunk keeps its page.** Chunks carry `source`, `page` and a stable `chunk_id` such as `p12-c01` (printed page 12, chunk 01 of that page). Pages are split one at a time, so a chunk never spans two pages. `pypdf` numbers pages from 0; `rag/text.py` holds the single conversion to the printed page number that people see.
 - **The index persists.** Ingest stores a manifest with the PDF's SHA-256 and the settings that affect the index. Running it again with the same PDF and settings prints `Index is up to date ... skipping embedding.` Changing the PDF or a setting such as chunk size builds a new index in its own folder. `python -m rag.ingest --force` rebuilds anyway.
 - **Task prefixes matter.** `nomic-embed-text` was trained with `search_query: ` and `search_document: ` prefixes, and retrieves worse without them. `rag/models.py` adds them.
+
+### Grounding: answer from the notes or say so
+
+A small model will happily answer "What port does MQTT use?" from its own memory, even though the notes never mention it. The pipeline has three guards against that:
+
+1. **A relevance gate before the model.** If even the best retrieved chunk scores below `min_relevance` (cosine similarity, 0.60 for `nomic-embed-text`), the question is refused without calling the chat model. On the golden set, answerable questions score at least 0.64 and the off-topic ones between 0.50 and 0.63, so the gate catches the clearly unrelated questions and leaves the close calls to the next two guards.
+2. **A grounded prompt.** `rag/prompts.py` tells the model to use only the numbered passages, end each factual sentence with its `[n]`, and reply with the exact refusal sentence when the passages do not contain the answer.
+3. **Citations are checked.** `rag/citations.py` keeps only markers that point at a retrieved passage. With `require_citations` on (the default), an answer with no valid citation is replaced by the refusal, because an uncited answer cannot be checked.
+
+`RagResult.refusal_reason` says which guard fired: `low_relevance`, `model` or `no_citations`. Set `RAG_GROUNDED_PROMPT=off` to see the original behaviour. `evals/results/citations.md` compares the two on the golden set. With `gemma2:2b`, grounding took refusals of unanswerable questions from 0 of 5 to 5 of 5 and put a valid citation on all 25 answerable ones, with no false refusals. The price is completeness: judged correctness fell from 0.94 to 0.72, because the shorter grounded answers often name only the items present in the four retrieved chunks, while the basic prompt fills gaps from the model's own knowledge.
 
 ## Measuring it: evals
 
@@ -86,6 +97,7 @@ Retrieval and generation are measured separately, because they fail for differen
 python -m evals.retrieval            # Recall@1/3/5 and MRR, no LLM needed
 python -m evals.answers              # faithfulness and correctness, judged by an LLM
 python -m evals.experiments baseline # both, written to evals/results/baseline.md
+python -m evals.experiments citations # basic prompt vs grounded prompt, evals/results/citations.md
 ```
 
 - **Recall@k**: of the pages that hold the answer, the share found in the top k chunks.
@@ -93,7 +105,7 @@ python -m evals.experiments baseline # both, written to evals/results/baseline.m
 - **Faithfulness**: is every claim in the answer supported by the retrieved chunks? (Scored only for answered questions.)
 - **Correctness**: does the answer state the facts in the reference answer? For unanswerable questions, a refusal is correct.
 
-The judge is a short hand-written prompt (`evals/judge.py`) that asks for one word, YES, PARTLY or NO, rather than Ragas. Ragas asks the judge for multi-step JSON that 2B models often break, and a one-line prompt is easier for learners to read. **Small local judges are noisy**: while building this, `gemma2:2b` graded most fully correct answers as PARTLY until the prompt said extra detail is fine, and `qwen2.5:1.5b` said YES to everything. Read the scores as a trend over the whole set, and spot-check a sample with a stronger hosted judge before trusting a small difference:
+The judge is a short hand-written prompt (`evals/judge.py`) that asks for one word, YES, PARTLY or NO, rather than Ragas. Ragas asks the judge for multi-step JSON that 2B models often break, and a one-line prompt is easier for learners to read. **Small local judges are noisy**: while building this, `gemma2:2b` graded short, fully correct answers as PARTLY until the question was dropped from the correctness prompt and it said wording may differ, and `qwen2.5:1.5b` said YES to everything. `test_judge_calibration_real` in `tests/test_evals_integration.py` checks the local judge against six hand-labelled answers; run it after changing the judge model or prompt. Read the scores as a trend over the whole set, and spot-check a sample with a stronger hosted judge before trusting a small difference:
 
 ```bash
 pip install langchain-anthropic   # or langchain-openai
@@ -114,6 +126,9 @@ Every field of `RagConfig` in `rag/config.py` can be set with an environment var
 | `RAG_EMBED_MODEL` | `nomic-embed-text` | Ollama embedding model |
 | `RAG_CHUNK_SIZE` / `RAG_CHUNK_OVERLAP` | `800` / `120` | Chunking, in characters |
 | `RAG_K` | `4` | Chunks given to the LLM |
+| `RAG_GROUNDED_PROMPT` | `on` | Grounded, cited prompt; `off` uses the original basic prompt |
+| `RAG_REQUIRE_CITATIONS` | `on` | Refuse answers that carry no valid `[n]` citation |
+| `RAG_MIN_RELEVANCE` | `0.60` | Refuse before calling the model when the best chunk scores lower |
 | `RAG_INDEX_DIR` | `.rag_index` | Where indexes are stored |
 | `RAG_PDF_PATH` | `3rd module notes.pdf` | The document |
 | `RAG_PROVIDER` | `ollama` | `offline` swaps in the test stand-ins (no Ollama needed) |

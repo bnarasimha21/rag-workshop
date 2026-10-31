@@ -1,6 +1,6 @@
 # Baseline (issue 1 pipeline)
 
-Generated 2026-10-30 by `evals/`. Golden set: `evals/golden.jsonl`.
+Generated 2026-10-31 by `evals/`. Golden set: `evals/golden.jsonl`.
 
 Config: embeddings `nomic-embed-text`, chat `gemma2:2b`; chunks 800/120; k=4; mode `vector`; rerank off; contextual chunks off. Answers judged by ollama/gemma2:2b.
 
@@ -12,8 +12,8 @@ Config: embeddings `nomic-embed-text`, chat `gemma2:2b`; chunks 800/120; k=4; mo
 
 ## Answers
 
-| config | faithfulness | correctness | refused unanswerable | false refusals |
-|---|---|---|---|---|
-| vector | 0.917 | 0.780 | 0% | 0 |
+| config | faithfulness | correctness | answered with citations | refused unanswerable | false refusals |
+|---|---|---|---|---|---|
+| vector | 0.917 | 0.940 | 0% | 0% | 0 |
 
 Per-question answers and scores: `baseline-answers.csv`.

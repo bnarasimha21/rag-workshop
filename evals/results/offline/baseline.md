@@ -1,6 +1,6 @@
 # Baseline (issue 1 pipeline)
 
-Generated 2026-10-30 by `evals/`. Golden set: `evals/golden.jsonl`.
+Generated 2026-10-31 by `evals/`. Golden set: `evals/golden.jsonl`.
 
 Config: offline stand-ins (hashing embeddings, extractive model); chunks 800/120; k=4; mode `vector`; rerank off; contextual chunks off. Answers judged by lexical (offline heuristic).
 
@@ -12,8 +12,8 @@ Config: offline stand-ins (hashing embeddings, extractive model); chunks 800/120
 
 ## Answers
 
-| config | faithfulness | correctness | refused unanswerable | false refusals |
-|---|---|---|---|---|
-| vector | 1.000 | 0.475 | 100% | 0 |
+| config | faithfulness | correctness | answered with citations | refused unanswerable | false refusals |
+|---|---|---|---|---|---|
+| vector | 0.833 | 0.475 | 0% | 0% | 0 |
 
 Per-question answers and scores: `baseline-answers.csv`.

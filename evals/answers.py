@@ -59,6 +59,9 @@ def evaluate_answers(cfg: RagConfig, items: list[GoldenItem], judge, pipeline: P
             "question": item.question,
             "answer": result.answer,
             "refused": refused,
+            "refusal_reason": getattr(result, "refusal_reason", None) or "",
+            "valid_citations": len(getattr(result, "citations", [])),
+            "cited_pages": " ".join(str(c.page) for c in getattr(result, "citations", [])),
             "retrieved_pages": " ".join(str(c.printed_page) for c in result.chunks),
             "faithfulness": faithfulness,
             "correctness": correctness,
@@ -76,6 +79,9 @@ def summarize(rows: list[dict]) -> dict:
         "answered": sum(not r["refused"] for r in rows),
         "false_refusals": sum(r["refused"] for r in answerable),
         "refusal_rate_unanswerable": (sum(r["refused"] for r in unanswerable) / len(unanswerable)) if unanswerable else math.nan,
+        # Share of answerable questions that got an answer with at least one
+        # valid citation. A refusal counts against it.
+        "cited_rate_answerable": (sum(r["valid_citations"] > 0 for r in answerable) / len(answerable)) if answerable else math.nan,
     }
     return summary
 
@@ -103,6 +109,7 @@ def write_csv(rows: list[dict], path: Path) -> Path:
 
 def format_summary(s: dict) -> str:
     return (f"faithfulness={s['faithfulness']:.3f}  correctness={s['correctness']:.3f}  "
+            f"cited answers {s['cited_rate_answerable']:.0%} of answerable, "
             f"refused {s['refusal_rate_unanswerable']:.0%} of unanswerable, "
             f"{s['false_refusals']} false refusals")
 

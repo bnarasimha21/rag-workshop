@@ -1,4 +1,4 @@
-"""Step 3 of RAG: retrieve chunks, build a prompt, ask the LLM.
+"""Step 3 of RAG: retrieve chunks, build a prompt, ask the LLM, check the answer.
 
 Nothing here runs at import time: no index is built, no model is called and no
 server is started until you call ``answer()``.
@@ -9,13 +9,13 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass, field
 
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import HumanMessage, SystemMessage
 
+from rag.citations import Citation, extract_citations, is_refusal_text
 from rag.config import RagConfig
 from rag.models import make_chat_model
+from rag.prompts import BASIC_PROMPT, GROUNDED_SYSTEM, GROUNDED_USER, format_passages
 from rag.retrievers import Hit, Index, retrieve
-
-BASIC_PROMPT = "Given the context: {context}, answer the question: {question}"
 
 
 @dataclass
@@ -23,6 +23,13 @@ class RagResult:
     question: str
     answer: str
     chunks: list[Hit]
+    citations: list[Citation] = field(default_factory=list)
+    refused: bool = False
+    # Why we refused: "low_relevance" (nothing retrieved was close enough, the
+    # LLM was not called), "model" (the LLM said the document lacks the
+    # answer) or "no_citations" (the LLM answered but cited nothing valid).
+    refusal_reason: str | None = None
+    raw_answer: str = ""  # what the LLM actually said, before any checks
     timings: dict = field(default_factory=dict)  # stage name -> milliseconds
 
 
@@ -44,17 +51,61 @@ class Pipeline:
             self._llm = make_chat_model(self.cfg)
         return self._llm
 
+    def messages(self, question: str, chunks: list[Hit]) -> list:
+        if not self.cfg.grounded_prompt:
+            context = " ".join(c.text for c in chunks)
+            return [HumanMessage(BASIC_PROMPT.format(context=context, question=question))]
+        return [
+            SystemMessage(GROUNDED_SYSTEM.format(refusal=self.cfg.refusal_text)),
+            HumanMessage(GROUNDED_USER.format(passages=format_passages(chunks), question=question)),
+        ]
+
     def answer(self, question: str) -> RagResult:
+        cfg = self.cfg
         timings = {}
         t0 = time.perf_counter()
-        chunks = retrieve(self.index, question, self.cfg)
+        chunks = retrieve(self.index, question, cfg)
         timings["retrieve"] = (time.perf_counter() - t0) * 1000
+        result = RagResult(question=question, answer="", chunks=chunks, timings=timings)
 
-        context = " ".join(c.text for c in chunks)
+        if cfg.grounded_prompt and self._too_far(chunks):
+            return self._refuse(result, "low_relevance")
+
         t0 = time.perf_counter()
-        reply = self.llm.invoke([HumanMessage(BASIC_PROMPT.format(context=context, question=question))])
+        reply = self.llm.invoke(self.messages(question, chunks))
         timings["generate"] = (time.perf_counter() - t0) * 1000
-        return RagResult(question, str(reply.content).strip(), chunks, timings)
+        result.raw_answer = str(reply.content).strip()
+
+        if not cfg.grounded_prompt:
+            result.answer = result.raw_answer
+            return result
+
+        text, citations = extract_citations(result.raw_answer, chunks)
+        if is_refusal_text(text, cfg.refusal_text) and not citations:
+            return self._refuse(result, "model")
+        if not citations and cfg.require_citations:
+            return self._refuse(result, "no_citations")
+        result.answer, result.citations = text, citations
+        return result
+
+    def _too_far(self, chunks: list[Hit]) -> bool:
+        """Groundedness gate: skip the LLM when no chunk is semantically close.
+
+        Uses the cosine similarity from vector search, so it applies in the
+        modes that run vector search (vector and hybrid). An empty retrieval
+        result always counts as too far.
+        """
+        if not chunks:
+            return True
+        vector_scores = [c.scores["vector"] for c in chunks if "vector" in c.scores]
+        return bool(vector_scores) and max(vector_scores) < self.cfg.min_relevance
+
+    def _refuse(self, result: RagResult, reason: str) -> RagResult:
+        result.answer = self.cfg.refusal_text
+        result.refused = True
+        result.refusal_reason = reason
+        result.citations = []
+        return result
 
 
 _default: Pipeline | None = None

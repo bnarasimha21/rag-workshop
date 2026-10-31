@@ -63,7 +63,7 @@ class RagConfig:
     # Grounding (issue 3)
     grounded_prompt: bool = True    # False reproduces the original one-line prompt
     require_citations: bool = True  # refuse when the answer cites nothing valid
-    min_relevance: float = 0.55     # refuse before generation below this vector score
+    min_relevance: float = 0.60     # refuse before generation below this vector score (tuned in evals)
     refusal_text: str = "I could not find the answer in the document."
 
     # Cost estimate for a hosted model (issue 6). Local Ollama is free, so 0.
@@ -145,7 +145,7 @@ class RagConfig:
 # Settings for the offline stand-in models (rag/offline.py). The hashing
 # embeddings give lower similarity scores than nomic-embed-text, so the
 # pre-generation relevance gate needs its own threshold, tuned on the golden set.
-OFFLINE_DEFAULTS = {"provider": "offline", "min_relevance": 0.12, "judge_provider": "offline"}
+OFFLINE_DEFAULTS = {"provider": "offline", "min_relevance": 0.08, "judge_provider": "offline"}
 
 
 def offline_config(**overrides) -> RagConfig:

@@ -30,14 +30,14 @@ Answer:
 
 Is every factual claim in the answer supported by the source text? Reply with exactly one word: YES, PARTLY or NO."""
 
-CORRECTNESS_PROMPT = """Question: {question}
-
-Reference answer: {reference}
+# Calibrated against gemma2:2b on tests/test_evals_integration.py::test_judge_calibration_real.
+# Leaving the question out and saying "wording may differ" matters: with the question in the
+# prompt, the 2B judge marked short, fully correct answers PARTLY.
+CORRECTNESS_PROMPT = """Reference answer: {reference}
 
 Candidate answer: {answer}
 
-Does the candidate answer state the facts in the reference answer? Extra detail in the candidate is fine and is not a reason to mark it down.
-Reply YES if it states all of them, PARTLY if it states only some, NO if it states none or contradicts them. Reply with one word."""
+Does the candidate answer contain the same information as the reference answer? Wording may differ and extra detail is fine. Reply YES, PARTLY (some of it is missing) or NO (none of it, or it contradicts the reference). One word."""
 
 _VERDICT = re.compile(r"\b(YES|PARTLY|PARTIAL|PARTIALLY|NO)\b")
 _SCORES = {"YES": 1.0, "PARTLY": 0.5, "PARTIAL": 0.5, "PARTIALLY": 0.5, "NO": 0.0}

@@ -142,3 +142,36 @@ def test_retrieval_eval_real_models(real_cfg):
         assert 0.0 <= value <= 1.0
     baseline = load_baselines()["nomic-embed-text/vector"]
     assert report.metrics["recall@5"] >= baseline["recall@5"] - TOLERANCE
+
+
+# Hand-labelled cases: (question, reference, candidate, expected verdict).
+CALIBRATION = [
+    ("What kind of database systems are structured data associated with, and which language is used to access them?",
+     "Relational database management systems (RDBMS), accessed with Structured Query Language (SQL).",
+     "Structured data is associated with relational database management systems (RDBMS). Established languages "
+     "such as Structured Query Language (SQL) are used for accessing these data.", 1.0),
+    ("What are the two large processing topologies for IoT?", "On-site processing and off-site processing.",
+     "The two large processing topologies for IoT are On-site and Off-site.", 1.0),
+    ("Into which three categories is IoT data divided based on the urgency of processing?",
+     "Very time critical, time critical, and normal.",
+     "IoT data is divided into three categories based on the urgency of processing: very time critical, time critical, and normal.", 1.0),
+    ("Into which three categories is IoT data divided based on the urgency of processing?",
+     "Very time critical, time critical, and normal.",
+     "IoT data is divided by urgency; one category is very time critical data.", 0.5),
+    ("What kind of database systems are structured data associated with, and which language is used to access them?",
+     "Relational database management systems (RDBMS), accessed with Structured Query Language (SQL).",
+     "Structured data lives in NoSQL document stores accessed with GraphQL.", 0.0),
+    ("What are the two large processing topologies for IoT?", "On-site processing and off-site processing.",
+     "Cloud processing and fog processing.", 0.0),
+]
+
+
+@pytest.mark.realmodel
+def test_judge_calibration_real(real_cfg):
+    """The default local judge must agree with hand labels on most cases, and never call a correct answer wrong."""
+    cfg = real_cfg()
+    judge = make_judge(cfg, "ollama", None)
+    verdicts = [(judge.correctness(q, a, r), want) for q, r, a, want in CALIBRATION]
+    agree = sum(got == want for got, want in verdicts)
+    assert agree >= 5, verdicts
+    assert all(got == 1.0 for got, want in verdicts if want == 1.0), verdicts
