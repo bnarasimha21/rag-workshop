@@ -33,7 +33,7 @@ def shared_index_dir(tmp_path_factory) -> Path:
 @pytest.fixture
 def offline_cfg(shared_index_dir):
     def make(**overrides) -> RagConfig:
-        return offline_config(index_dir=shared_index_dir, **overrides)
+        return offline_config(**{"index_dir": shared_index_dir, **overrides})
 
     return make
 

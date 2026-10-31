@@ -73,6 +73,11 @@ class OverlapReranker:
         return [overlap_score(q, p) for q, p in pairs]
 
 
+def _is_heading(line: str) -> bool:
+    """A short line that starts with a capital or a number and does not end a sentence."""
+    return 3 < len(line) < 60 and (line[0].isupper() or line[0].isdigit()) and not line.endswith((".", ","))
+
+
 _BLOCK = re.compile(r"^\[(\d+)\] \(page (\d+)\)\n(.*?)(?=^\[\d+\] \(page \d+\)\n|\Z)", re.M | re.S)
 _SENT_SPLIT = re.compile(r"(?<=[.!?])\s+|\n\s*-\s*")
 
@@ -150,13 +155,16 @@ class OfflineChatModel(BaseChatModel):
         return best[0][2] if best else self.refusal_text
 
     def _contextualize(self, user: str) -> str:
+        """Name the nearest heading above the chunk on its page, like a careful reader would."""
         doc = re.search(r"<document>(.*?)</document>", user, re.S)
+        chunk = re.search(r"<chunk>(.*?)</chunk>", user, re.S)
         page = re.search(r"<page>(\d+)</page>", user)
-        heading = "this topic"
-        for line in (doc.group(1) if doc else "").splitlines():
-            line = line.strip()
-            if 3 < len(line) < 60 and not line.startswith("-"):
-                heading = line.rstrip(":")
-                break
+        page_text = doc.group(1) if doc else ""
+        chunk_text = chunk.group(1).strip() if chunk else ""
+        start = page_text.find(chunk_text[:80]) if chunk_text else -1
+        first_line = chunk_text.splitlines()[0] if chunk_text else ""
+        before = (page_text[:start] + first_line) if start >= 0 else page_text
+        headings = [line for line in (raw.strip() for raw in before.splitlines()) if _is_heading(line)]
+        heading = headings[-1].rstrip(":. ") if headings else "this topic"
         where = f" on page {page.group(1)}" if page else ""
         return f"From the IoT module notes{where}, in the part about {heading}."

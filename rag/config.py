@@ -47,6 +47,7 @@ class RagConfig:
     # small enough to be specific, big enough to keep a definition together.
     chunk_size: int = 800
     chunk_overlap: int = 120
+    max_pages: int = 0              # 0 = the whole PDF; tests use a few pages to stay fast
 
     # Retrieval
     k: int = 4                      # chunks handed to the LLM
@@ -121,6 +122,8 @@ class RagConfig:
             "contextual": self.contextual_chunks,
             "context_model": self.effective_context_model if self.contextual_chunks else "",
         }
+        if self.max_pages:  # only when set, so existing full-PDF indexes keep their folder names
+            relevant["max_pages"] = self.max_pages
         blob = json.dumps(relevant, sort_keys=True).encode()
         return hashlib.sha256(blob).hexdigest()[:12]
 

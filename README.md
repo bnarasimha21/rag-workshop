@@ -98,6 +98,16 @@ What we measured on the golden set (`evals/results/retrieval-modes.md`, real `no
 
 **The default stays plain vector search.** On a 15-page document with one topic, vector search already reaches Recall@5 0.98, and hybrid fusion without a reranker made it slightly worse. Reranking puts a correct chunk first more often (MRR 0.93 to 0.96) but costs about 9 to 17 times the latency without raising Recall@5. On a larger corpus full of exact product names or codes, BM25 and the reranker are more likely to pay off, which is why every mode has a committed baseline in `evals/baselines.json`.
 
+### Contextual chunks
+
+A chunk such as "Size: ... Energy: ..." loses the fact that it is about IoT device design once it is cut from its page. With `RAG_CONTEXTUAL_CHUNKS=on`, ingest asks the chat model for one or two sentences that place each chunk on its page (`rag/contextualize.py`), stores them in `metadata["context"]`, and embeds and BM25-indexes `context + chunk`. Citations and the Sources panel still show only the original chunk text.
+
+This is Anthropic's [contextual retrieval](https://www.anthropic.com/news/contextual-retrieval) idea (September 2024). On their benchmarks, contextual embeddings cut the top-20 retrieval failure rate by 35%, adding contextual BM25 by 49%, and adding reranking by 67%. Because a 2B model cannot read the whole PDF at once, our prompt gives it the chunk's page as the document.
+
+Each chunk costs one LLM call, so the results are cached in `.rag_index/context_cache.json`, keyed by the chunk, its page, the model and the prompt version. A second ingest makes no LLM calls, and the log says so.
+
+**On this PDF it is a wash.** `evals/results/contextual.md`: with `gemma2:2b` writing the contexts (41 calls, about 25,000 tokens, 57 seconds once), plain vector search moved from Recall@5 0.98 / MRR 0.927 to 0.96 / 0.960, so the right chunk comes first more often but one more page drops out of the top 5; hybrid+rerank stayed at Recall@5 0.98 with MRR 0.960 to 0.950. The notes are short and every page already has clear headings, so there is little missing context to add. It stays off by default. Try it on a longer document whose chunks make no sense without their section.
+
 ### Grounding: answer from the notes or say so
 
 A small model will happily answer "What port does MQTT use?" from its own memory, even though the notes never mention it. The pipeline has three guards against that:
@@ -120,6 +130,7 @@ python -m evals.answers              # faithfulness and correctness, judged by a
 python -m evals.experiments baseline # both, written to evals/results/baseline.md
 python -m evals.experiments citations # basic prompt vs grounded prompt, evals/results/citations.md
 python -m evals.experiments retrieval-modes # every retrieval mode, with and without the reranker
+python -m evals.experiments contextual # contextual chunks off vs on, with the ingest cost
 ```
 
 - **Recall@k**: of the pages that hold the answer, the share found in the top k chunks.
@@ -149,6 +160,7 @@ Every field of `RagConfig` in `rag/config.py` can be set with an environment var
 | `RAG_CHUNK_SIZE` / `RAG_CHUNK_OVERLAP` | `800` / `120` | Chunking, in characters |
 | `RAG_K` | `4` | Chunks given to the LLM |
 | `RAG_RETRIEVAL_MODE` | `vector` | `vector`, `bm25` or `hybrid` |
+| `RAG_CONTEXTUAL_CHUNKS` | `off` | Add a model-written context line to every chunk before indexing (`RAG_CONTEXT_MODEL` defaults to the chat model) |
 | `RAG_RERANK` | `off` | Rerank `RAG_CANDIDATE_K` (20) candidates with the cross-encoder `RAG_RERANKER_MODEL` |
 | `RAG_GROUNDED_PROMPT` | `on` | Grounded, cited prompt; `off` uses the original basic prompt |
 | `RAG_REQUIRE_CITATIONS` | `on` | Refuse answers that carry no valid `[n]` citation |

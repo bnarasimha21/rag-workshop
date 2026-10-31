@@ -33,7 +33,7 @@ CHUNKS_FILE = "chunks.jsonl"
 # ---- loading and splitting ---------------------------------------------
 
 
-def load_pages(pdf_path: Path) -> list[Document]:
+def load_pages(pdf_path: Path, max_pages: int = 0) -> list[Document]:
     """One Document per PDF page, with 0-indexed ``page`` metadata.
 
     This is what LangChain's ``PyPDFLoader`` does; we call ``pypdf`` directly
@@ -44,6 +44,8 @@ def load_pages(pdf_path: Path) -> list[Document]:
     reader = PdfReader(str(pdf_path))
     pages = []
     for i, page in enumerate(reader.pages):
+        if max_pages and i >= max_pages:
+            break
         text = clean_page_text(page.extract_text() or "")
         if text:
             pages.append(Document(page_content=text, metadata={"source": Path(pdf_path).name, "page": i}))
@@ -108,6 +110,9 @@ class IngestReport:
     context_calls: int = 0
     context_tokens: int = 0
     context_cache_hits: int = 0
+    context_seconds: float = 0.0
+    context_full_tokens: int = 0       # one-time cost of contextualizing every chunk,
+    context_full_seconds: float = 0.0  # even when this run read them all from the cache
 
 
 def _chroma(cfg: RagConfig, path: Path):
@@ -157,12 +162,19 @@ def ingest(cfg: RagConfig, force: bool = False) -> IngestReport:
         shutil.rmtree(path)
     path.mkdir(parents=True)
 
-    pages = load_pages(pdf)
+    pages = load_pages(pdf, cfg.max_pages)
     chunks = split_pages(pages, cfg)
     log.info("Loaded %d pages, split into %d chunks (size %d, overlap %d).",
              len(pages), len(chunks), cfg.chunk_size, cfg.chunk_overlap)
 
     report = IngestReport(path, False, len(chunks), 0.0)
+    if cfg.contextual_chunks:
+        from rag.contextualize import contextualize
+
+        stats = contextualize(chunks, pages, cfg)
+        report.context_calls, report.context_cache_hits = stats.calls, stats.cache_hits
+        report.context_tokens, report.context_seconds = stats.tokens, stats.seconds
+        report.context_full_tokens, report.context_full_seconds = stats.full_tokens, stats.full_seconds
 
     # Chroma stores the text it embeds, so we store the context-enriched text
     # there and keep the original chunk text in metadata for citations.
@@ -185,6 +197,10 @@ def ingest(cfg: RagConfig, force: bool = False) -> IngestReport:
         "chunk_size": cfg.chunk_size,
         "chunk_overlap": cfg.chunk_overlap,
         "contextual_chunks": cfg.contextual_chunks,
+        "context_model": cfg.effective_context_model if cfg.contextual_chunks else None,
+        "max_pages": cfg.max_pages or None,
+        "context_cost": {"llm_calls": report.n_chunks, "tokens": report.context_full_tokens,
+                         "seconds": round(report.context_full_seconds, 1)} if cfg.contextual_chunks else None,
         "n_chunks": len(chunks),
         "built_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
     }, indent=2))

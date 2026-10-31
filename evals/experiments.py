@@ -104,7 +104,45 @@ def run_retrieval_modes(base: RagConfig, offline: bool, judge_provider: str | No
     return str(path)
 
 
-EXPERIMENTS = {"baseline": run_baseline, "citations": run_citations, "retrieval-modes": run_retrieval_modes}
+CONTEXTUAL_HEADERS = ["contextual chunks", "mode", "Recall@1", "Recall@3", "Recall@5", "MRR", "median retrieval ms"]
+
+
+def run_contextual(base: RagConfig, offline: bool, judge_provider: str | None, judge_model: str | None) -> str:
+    """Issue 5: retrieval with and without a generated context line on every chunk."""
+    import json
+
+    from rag.ingest import MANIFEST, ingest
+    from rag.retrievers import Index
+
+    rows = []
+    cost = None
+    for contextual in (False, True):
+        cfg = base.with_overrides(contextual_chunks=contextual)
+        built = ingest(cfg)
+        if contextual:
+            cost = json.loads((built.path / MANIFEST).read_text())["context_cost"]
+        index = Index(cfg, built.path)
+        for mode, rerank in (("vector", False), ("hybrid", True)):
+            run_cfg = cfg.with_overrides(retrieval_mode=mode, rerank=rerank)
+            report = evaluate_retrieval(run_cfg, load_golden(), index=index)
+            m = report.metrics
+            rows.append(["on" if contextual else "off", run_cfg.name.replace("+ctx", ""), m["recall@1"], m["recall@3"],
+                         m["recall@5"], m["mrr"], f"{report.median_ms:.0f}"])
+    model = "the offline stand-in" if offline else f"`{base.effective_context_model}`"
+    path = write_markdown(results_dir(offline) / "contextual.md", "Contextual chunks (issue 5)", [
+        f"Config: {describe(base, retrieval=False)}. Contexts written by {model}, one call per chunk, "
+        "with the page as the document.",
+        markdown_table(CONTEXTUAL_HEADERS, rows),
+        "## One-time ingest cost\n\n" + markdown_table(
+            ["LLM calls", "tokens", "seconds"], [[cost["llm_calls"], cost["tokens"], cost["seconds"]]])
+        + "\n\nPaid once per PDF and model: contexts are cached in `.rag_index/context_cache.json`, "
+          "so rebuilding the index makes no LLM calls.",
+    ])
+    return str(path)
+
+
+EXPERIMENTS = {"baseline": run_baseline, "citations": run_citations, "retrieval-modes": run_retrieval_modes,
+               "contextual": run_contextual}
 
 
 def main(argv: list[str] | None = None) -> int:
