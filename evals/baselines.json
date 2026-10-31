@@ -1,14 +1,74 @@
 {
+  "hashing/bm25": {
+    "recall@1": 0.8,
+    "recall@3": 0.9,
+    "recall@5": 0.94,
+    "mrr": 0.9133
+  },
+  "hashing/bm25+rerank": {
+    "recall@1": 0.8,
+    "recall@3": 0.9,
+    "recall@5": 0.94,
+    "mrr": 0.9133
+  },
+  "hashing/hybrid": {
+    "recall@1": 0.8,
+    "recall@3": 0.9,
+    "recall@5": 0.94,
+    "mrr": 0.92
+  },
+  "hashing/hybrid+rerank": {
+    "recall@1": 0.8,
+    "recall@3": 0.9,
+    "recall@5": 0.94,
+    "mrr": 0.92
+  },
   "hashing/vector": {
     "recall@1": 0.8,
     "recall@3": 0.9,
     "recall@5": 0.94,
     "mrr": 0.92
   },
+  "hashing/vector+rerank": {
+    "recall@1": 0.8,
+    "recall@3": 0.88,
+    "recall@5": 0.94,
+    "mrr": 0.92
+  },
+  "nomic-embed-text/bm25": {
+    "recall@1": 0.8,
+    "recall@3": 0.9,
+    "recall@5": 0.94,
+    "mrr": 0.9133
+  },
+  "nomic-embed-text/bm25+rerank": {
+    "recall@1": 0.84,
+    "recall@3": 0.92,
+    "recall@5": 0.98,
+    "mrr": 0.96
+  },
+  "nomic-embed-text/hybrid": {
+    "recall@1": 0.78,
+    "recall@3": 0.9,
+    "recall@5": 0.92,
+    "mrr": 0.8933
+  },
+  "nomic-embed-text/hybrid+rerank": {
+    "recall@1": 0.84,
+    "recall@3": 0.92,
+    "recall@5": 0.98,
+    "mrr": 0.96
+  },
   "nomic-embed-text/vector": {
     "recall@1": 0.8,
     "recall@3": 0.94,
     "recall@5": 0.98,
     "mrr": 0.9267
+  },
+  "nomic-embed-text/vector+rerank": {
+    "recall@1": 0.84,
+    "recall@3": 0.92,
+    "recall@5": 0.96,
+    "mrr": 0.96
   }
 }

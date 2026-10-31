@@ -15,7 +15,7 @@ from rag.citations import Citation, extract_citations, is_refusal_text
 from rag.config import RagConfig
 from rag.models import make_chat_model
 from rag.prompts import BASIC_PROMPT, GROUNDED_SYSTEM, GROUNDED_USER, format_passages
-from rag.retrievers import Hit, Index, retrieve
+from rag.retrievers import Hit, Index, retrieve, vector_search
 
 
 @dataclass
@@ -68,7 +68,7 @@ class Pipeline:
         timings["retrieve"] = (time.perf_counter() - t0) * 1000
         result = RagResult(question=question, answer="", chunks=chunks, timings=timings)
 
-        if cfg.grounded_prompt and self._too_far(chunks):
+        if cfg.grounded_prompt and self._too_far(question, chunks):
             return self._refuse(result, "low_relevance")
 
         t0 = time.perf_counter()
@@ -88,17 +88,24 @@ class Pipeline:
         result.answer, result.citations = text, citations
         return result
 
-    def _too_far(self, chunks: list[Hit]) -> bool:
-        """Groundedness gate: skip the LLM when no chunk is semantically close.
+    def _too_far(self, question: str, chunks: list[Hit]) -> bool:
+        """Groundedness gate: skip the LLM when nothing in the document is semantically close.
 
-        Uses the cosine similarity from vector search, so it applies in the
-        modes that run vector search (vector and hybrid). An empty retrieval
-        result always counts as too far.
+        It compares the question's best cosine similarity over the whole index
+        with ``min_relevance``. That is the same in every retrieval mode, so
+        BM25 mode is gated too, and a reranker that drops the closest chunk
+        cannot cause a refusal. In plain vector mode the top hit already holds
+        that number; otherwise it costs one extra top-1 vector lookup.
+        An empty retrieval result always counts as too far.
         """
         if not chunks:
             return True
-        vector_scores = [c.scores["vector"] for c in chunks if "vector" in c.scores]
-        return bool(vector_scores) and max(vector_scores) < self.cfg.min_relevance
+        if self.cfg.retrieval_mode == "vector" and not self.cfg.rerank:
+            best = max(c.scores.get("vector", float("-inf")) for c in chunks)
+        else:
+            top = vector_search(self.index, question, 1)
+            best = top[0].score if top else float("-inf")
+        return best < self.cfg.min_relevance
 
     def _refuse(self, result: RagResult, reason: str) -> RagResult:
         result.answer = self.cfg.refusal_text

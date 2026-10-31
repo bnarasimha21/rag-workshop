@@ -28,10 +28,10 @@ jobs:
           pip install -r requirements-dev.txt
       - name: Offline test suite
         run: pytest -m "not realmodel" -q
-      - name: Offline retrieval gate
-        env:
-          RAG_RETRIEVAL_MODE: vector
-        run: python -m evals.retrieval --offline --check-baseline
+      - name: Offline retrieval gates
+        run: |
+          RAG_RETRIEVAL_MODE=vector python -m evals.retrieval --offline --check-baseline
+          RAG_RETRIEVAL_MODE=hybrid RAG_RERANK=on python -m evals.retrieval --offline --check-baseline
 
   retrieval-real-embeddings:
     # Retrieval with the real embedding model. No chat model is needed, so this
@@ -60,6 +60,11 @@ jobs:
       - name: Retrieval gate (fails if Recall@5 drops below the committed baseline)
         env:
           RAG_RETRIEVAL_MODE: vector
+        run: python -m evals.retrieval --check-baseline
+      - name: Retrieval gate for hybrid search with the cross-encoder reranker
+        env:
+          RAG_RETRIEVAL_MODE: hybrid
+          RAG_RERANK: "on"
         run: python -m evals.retrieval --check-baseline
 
   answers:

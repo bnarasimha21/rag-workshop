@@ -17,6 +17,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
+import statistics
+import time
 import sys
 from dataclasses import dataclass, field
 
@@ -48,6 +51,12 @@ class RetrievalReport:
     metrics: dict
     per_question: list = field(default_factory=list)
 
+    @property
+    def median_ms(self) -> float:
+        """Median retrieval time per question, in milliseconds."""
+        times = [r["ms"] for r in self.per_question]
+        return statistics.median(times) if times else math.nan
+
 
 def evaluate_retrieval(cfg: RagConfig, items: list[GoldenItem], index: Index | None = None, retriever=None) -> RetrievalReport:
     """Run every answerable golden question through retrieval and score it.
@@ -58,15 +67,19 @@ def evaluate_retrieval(cfg: RagConfig, items: list[GoldenItem], index: Index | N
     index = index or (Index.open(cfg) if retriever is None else None)
     retriever = retriever or (lambda q: retrieve(index, q, cfg, k=DEPTH))
     rows = []
-    for item in items:
-        if not item.answerable:
-            continue
+    answerable = [item for item in items if item.answerable]
+    if answerable:
+        retriever(answerable[0].question)  # warm-up: load models once so the timings are per query
+    for item in answerable:
+        t0 = time.perf_counter()
         hits = retriever(item.question)[:DEPTH]
+        elapsed_ms = (time.perf_counter() - t0) * 1000
         pages = [h.printed_page for h in hits]
         row = {"id": item.id, "question": item.question, "expected": list(item.expected_pages), "retrieved": pages}
         for k in KS:
             row[f"recall@{k}"] = recall_at_k(pages, item.expected_pages, k)
         row["rr"] = reciprocal_rank(pages, item.expected_pages)
+        row["ms"] = elapsed_ms
         rows.append(row)
     n = len(rows)
     metrics = {f"recall@{k}": sum(r[f"recall@{k}"] for r in rows) / n for k in KS}

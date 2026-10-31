@@ -72,7 +72,39 @@ def run_citations(base: RagConfig, offline: bool, judge_provider: str | None, ju
     return str(path)
 
 
-EXPERIMENTS = {"baseline": run_baseline, "citations": run_citations}
+MODE_HEADERS = ["mode", "rerank", "Recall@1", "Recall@3", "Recall@5", "MRR", "median retrieval ms"]
+
+
+def retrieval_mode_rows(base: RagConfig, contextual: bool = False) -> list[list]:
+    """Recall, MRR and median latency for every retrieval mode, with and without the reranker."""
+    from rag.retrievers import Index
+
+    index = Index.open(base.with_overrides(contextual_chunks=contextual))
+    rows = []
+    for mode in ("vector", "bm25", "hybrid"):
+        for rerank in (False, True):
+            cfg = base.with_overrides(retrieval_mode=mode, rerank=rerank, contextual_chunks=contextual)
+            report = evaluate_retrieval(cfg, load_golden(), index=index)
+            m = report.metrics
+            rows.append([mode, rerank, m["recall@1"], m["recall@3"], m["recall@5"], m["mrr"], f"{report.median_ms:.0f}"])
+    return rows
+
+
+def run_retrieval_modes(base: RagConfig, offline: bool, judge_provider: str | None, judge_model: str | None) -> str:
+    """Issue 4: vector, BM25 and hybrid retrieval, each with and without the cross-encoder."""
+    cfg = base.with_overrides(contextual_chunks=False)
+    reranker = "offline word-overlap stand-in" if offline else f"`{cfg.reranker_model}` on CPU"
+    path = write_markdown(results_dir(offline) / "retrieval-modes.md", "Retrieval modes (issue 4)", [
+        f"Config: {describe(cfg, retrieval=False)}. Reranker: {reranker}, choosing {cfg.k} of {cfg.candidate_k} candidates "
+        f"(5 for the Recall@5 column). Hybrid fuses the top {cfg.candidate_k} of each list with RRF, k={cfg.rrf_k}.",
+        "Latency is the median wall-clock time of one retrieval call on this machine, after one warm-up "
+        "query, and includes embedding the question.",
+        markdown_table(MODE_HEADERS, retrieval_mode_rows(cfg)),
+    ])
+    return str(path)
+
+
+EXPERIMENTS = {"baseline": run_baseline, "citations": run_citations, "retrieval-modes": run_retrieval_modes}
 
 
 def main(argv: list[str] | None = None) -> int:

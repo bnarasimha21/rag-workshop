@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import os
 
-from rag.config import RagConfig
+from rag.config import RETRIEVAL_MODES, RagConfig
 from rag.pipeline import Pipeline, RagResult
 
 REFUSAL_REASONS = {
@@ -35,12 +35,26 @@ def format_sources(result: RagResult) -> str:
 
 
 def make_handler(cfg: RagConfig):
-    pipeline = Pipeline(cfg)
+    """The function behind the Ask button.
 
-    def handle(question: str) -> tuple[str, str]:
+    ``mode`` and ``rerank`` come from the UI controls. Each combination gets its
+    own Pipeline, created on first use; they all share one index, because the
+    retrieval mode does not change what is stored.
+    """
+    base = Pipeline(cfg)
+    pipelines: dict[tuple[str, bool], Pipeline] = {(cfg.retrieval_mode, cfg.rerank): base}
+
+    def pipeline_for(mode: str, rerank: bool) -> Pipeline:
+        key = (mode, bool(rerank))
+        if key not in pipelines:
+            pipelines[key] = Pipeline(cfg.with_overrides(retrieval_mode=mode, rerank=bool(rerank)), index=base.index)
+        return pipelines[key]
+
+    def handle(question: str, mode: str | None = None, rerank: bool | None = None) -> tuple[str, str]:
         question = (question or "").strip()
         if not question:
             return "Please type a question.", ""
+        pipeline = pipeline_for(mode or cfg.retrieval_mode, cfg.rerank if rerank is None else rerank)
         result = pipeline.answer(question)
         return result.answer, format_sources(result)
 
@@ -55,12 +69,16 @@ def build_ui(cfg: RagConfig | None = None):
     with gr.Blocks(title="RAG Workshop") as ui:
         gr.Markdown("# RAG System\nAsk a question about the IoT module notes. Answers cite the pages they come from.")
         question = gr.Textbox(lines=2, label="Question", placeholder="Enter your question here...")
+        with gr.Row():
+            mode = gr.Dropdown(list(RETRIEVAL_MODES), value=cfg.retrieval_mode, label="Retrieval mode")
+            rerank = gr.Checkbox(value=cfg.rerank, label="Rerank with a cross-encoder")
         ask = gr.Button("Ask", variant="primary")
         answer = gr.Markdown(label="Answer")
         with gr.Accordion("Sources", open=True):
             sources = gr.Markdown()
-        ask.click(handle, inputs=question, outputs=[answer, sources])
-        question.submit(handle, inputs=question, outputs=[answer, sources])
+        inputs = [question, mode, rerank]
+        ask.click(handle, inputs=inputs, outputs=[answer, sources])
+        question.submit(handle, inputs=inputs, outputs=[answer, sources])
     return ui
 
 

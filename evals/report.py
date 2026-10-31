@@ -23,11 +23,12 @@ def markdown_table(headers: list[str], rows: list[list]) -> str:
     return "\n".join(lines)
 
 
-def describe(cfg: RagConfig) -> str:
+def describe(cfg: RagConfig, retrieval: bool = True) -> str:
+    """One line describing a config. ``retrieval=False`` leaves out mode and rerank, for tables that vary them."""
     models = "offline stand-ins (hashing embeddings, extractive model)" if cfg.provider == "offline" \
         else f"embeddings `{cfg.embed_model}`, chat `{cfg.chat_model}`"
-    return (f"{models}; chunks {cfg.chunk_size}/{cfg.chunk_overlap}; k={cfg.k}; "
-            f"mode `{cfg.retrieval_mode}`; rerank {'on' if cfg.rerank else 'off'}; "
+    mode = f"mode `{cfg.retrieval_mode}`; rerank {'on' if cfg.rerank else 'off'}; " if retrieval else ""
+    return (f"{models}; chunks {cfg.chunk_size}/{cfg.chunk_overlap}; k={cfg.k}; {mode}"
             f"contextual chunks {'on' if cfg.contextual_chunks else 'off'}")
 
 
