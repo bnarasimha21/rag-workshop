@@ -10,12 +10,17 @@ from rag.config import RagConfig
 
 
 def percentile(values, q: float) -> float:
-    """Nearest-rank percentile (q from 0 to 100): the smallest value with at least q% of values at or below it."""
+    """Percentile with linear interpolation (q from 0 to 100), the same as numpy's default.
+
+    p50 is the ordinary median: for [10, 20, 30, 40] it is 25.
+    """
     vals = sorted(v for v in values if v is not None and not (isinstance(v, float) and math.isnan(v)))
     if not vals:
         return math.nan
-    rank = max(1, math.ceil(q / 100 * len(vals)))
-    return vals[rank - 1]
+    pos = (len(vals) - 1) * q / 100
+    lo = math.floor(pos)
+    hi = min(lo + 1, len(vals) - 1)
+    return vals[lo] + (vals[hi] - vals[lo]) * (pos - lo)
 
 
 def ms(value: float) -> str:

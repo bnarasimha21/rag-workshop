@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from langchain_core.language_models.fake_chat_models import FakeListChatModel
 
-from rag.citations import extract_citations, is_refusal_text, starts_with_refusal
+from rag.citations import extract_citations, is_refusal_text, is_bare_refusal
 from rag.pipeline import Pipeline
 from rag.prompts import GROUNDED_SYSTEM, format_passages
 from rag.retrievers import Hit
@@ -101,7 +101,7 @@ def test_years_in_brackets_are_not_citations():
 
 def test_empty_refusal_text_never_matches():
     assert not is_refusal_text("Fog computing is decentralized.", "")
-    assert not starts_with_refusal("Fog computing is decentralized.", "")
+    assert not is_bare_refusal("Fog computing is decentralized.", "")
 
 
 def test_cited_refusal_is_still_a_refusal(offline_cfg):
@@ -128,3 +128,27 @@ def test_eval_counts_a_basic_prompt_refusal(offline_cfg):
     assert is_refusal(cfg, result)
     p = _pipeline_with(offline_cfg, "Fog is decentralized.", grounded_prompt=False)
     assert not is_refusal(cfg, p.answer("What is fog computing?"))
+
+
+def test_partial_answer_opening_with_the_refusal_is_kept(offline_cfg):
+    cfg = offline_cfg()
+    reply = f"{cfg.refusal_text} for the cost, but fog nodes sit near the devices [1]."
+    p = _pipeline_with(offline_cfg, reply)
+    result = p.answer("What is fog computing?")
+    assert not result.refused and [c.marker for c in result.citations] == [1]
+
+
+def test_refusal_text_check_keeps_word_breaks_across_newlines():
+    assert not is_refusal_text("not find the answer in the document.\nFog is local.", "the documentfog")
+    assert is_refusal_text("Sorry.\nI could not find the answer in the document.", "I could not find the answer in the document.")
+
+
+def test_eval_trusts_the_grounded_pipeline(offline_cfg):
+    """A kept grounded answer that mentions the refusal sentence for one part is an answer."""
+    from evals.answers import is_refusal
+
+    cfg = offline_cfg()
+    p = _pipeline_with(offline_cfg, f"Fog is decentralized [1]. {cfg.refusal_text}")
+    result = p.answer("What is fog computing?")
+    assert not result.refused
+    assert not is_refusal(cfg, result)

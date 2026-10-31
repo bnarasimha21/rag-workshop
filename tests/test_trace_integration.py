@@ -59,6 +59,26 @@ def test_answer_eval_rows_carry_latency_and_tokens(offline_cfg):
     assert summary["mean_tokens_in"] > 0
 
 
+def test_answer_eval_warms_up_before_timing(offline_cfg):
+    """The first scored question must not pay for loading the models."""
+    from evals import load_golden
+    from evals.answers import evaluate_answers
+    from evals.judge import LexicalJudge
+
+    class Counting(Pipeline):
+        calls: list[str] = []
+
+        def answer(self, question, clock=None):
+            self.calls.append(question)
+            return super().answer(question, clock)
+
+    items = load_golden(limit=3)
+    pipeline = Counting(offline_cfg())
+    _, rows = evaluate_answers(pipeline.cfg, items, LexicalJudge(), pipeline=pipeline)
+    assert pipeline.calls == [items[0].question] + [i.question for i in items]
+    assert [r["id"] for r in rows] == [i.id for i in items]
+
+
 @pytest.mark.realmodel
 def test_trace_real(real_cfg):
     check_trace(real_cfg())

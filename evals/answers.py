@@ -45,11 +45,19 @@ def is_refusal(cfg: RagConfig, result) -> bool:
     """
     if getattr(result, "refused", False):
         return True
+    if cfg.grounded_prompt:
+        # The grounded pipeline already decided: an answer it kept is cited and
+        # may mention the refusal sentence for a part it could not find.
+        return False
     return is_refusal_text(result.answer, cfg.refusal_text)
 
 
 def evaluate_answers(cfg: RagConfig, items: list[GoldenItem], judge, pipeline: Pipeline | None = None) -> tuple[dict, list[dict]]:
     pipeline = pipeline or Pipeline(cfg)
+    if items:
+        # Warm-up, not scored: loading the chat model, embedder or reranker
+        # would otherwise land inside the first question's stage times.
+        pipeline.answer(items[0].question)
     rows = []
     for item in items:
         result = pipeline.answer(item.question)

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import math
+
 import pytest
 
 from rag.trace import Trace
@@ -71,3 +73,13 @@ def test_cost_estimate_and_markdown():
     md = trace.as_markdown()
     assert "| generate |" in md and "**total**" in md and "estimate" in md
     assert "estimate" not in Trace(clock=FakeClock()).finish().as_markdown()  # local: no price line
+
+
+def test_percentile_interpolates_like_a_median():
+    from evals.report import percentile
+
+    assert percentile([40, 10, 30, 20], 50) == 25
+    assert percentile([1, 2, 3], 50) == 2
+    assert percentile([7], 95) == 7
+    assert percentile([0, 100], 95) == 95
+    assert math.isnan(percentile([None, float("nan")], 50))
