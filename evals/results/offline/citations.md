@@ -8,8 +8,17 @@ Faithfulness is scored only on answered questions. "Answered with citations" cou
 
 | config | faithfulness | correctness | answered with citations | refused unanswerable | false refusals |
 |---|---|---|---|---|---|
-| before: basic prompt | 0.833 | 0.475 | 0% | 0% | 0 |
+| before: basic prompt | 1.000 | 0.475 | 0% | 100% | 0 |
 | after: grounded + citations | 1.000 | 0.523 | 100% | 100% | 0 |
+
+## Latency and tokens
+
+Per question, on this machine. Generate time and tokens cover only the questions that reached the model (a low-relevance refusal skips it).
+
+| config | retrieve ms p50 / p95 | generate ms p50 / p95 | total ms p50 / p95 | mean tokens in | mean tokens out |
+|---|---|---|---|---|---|
+| before: basic prompt | 0 / 0 | 0 / 0 | 1 / 1 | 392 | 18 |
+| after: grounded + citations | 0 / 0 | 0 / 0 | 1 / 1 | 493 | 27 |
 
 Per-question rows: `citations-before-answers.csv` and `citations-after-answers.csv`.
 

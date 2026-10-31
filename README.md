@@ -68,6 +68,7 @@ The code lives in the `rag/` package. Read it in this order:
 | 2. Retrieve | `rag/retrievers.py` | Finds the `k` most relevant chunks: by embedding similarity (`vector`), by shared keywords (`bm25`), or both fused (`hybrid`), optionally reranked by a cross-encoder. |
 | 3. Generate | `rag/pipeline.py`, `rag/prompts.py` | Numbers the chunks `[1]`, `[2]` ... in a grounded prompt and asks the chat model. `answer(question)` returns a `RagResult`. |
 | 4. Cite | `rag/citations.py` | Turns the `[n]` markers in the answer into citations (chunk id, page, original text) and drops markers that point at nothing. |
+| Trace | `rag/trace.py` | Times every stage (`retrieve`, with `search` and `rerank` inside it, `relevance_gate`, `generate`) and records the model's token counts in `RagResult.trace`. |
 | 5. UI | `rag/app.py` | A Gradio page around `Pipeline.answer`, with a Sources panel showing each cited chunk. Importing it starts nothing; the server starts in `main()`. |
 
 Things worth noticing while you read:
@@ -88,15 +89,18 @@ Set `RAG_RETRIEVAL_MODE` and `RAG_RERANK`, or use the dropdown and checkbox in t
 
 What we measured on the golden set (`evals/results/retrieval-modes.md`, real `nomic-embed-text`, this MacBook):
 
-| mode | rerank | Recall@1 | Recall@5 | MRR | median ms |
-|---|---|---|---|---|---|
-| vector | no | 0.80 | 0.98 | 0.927 | 15 |
-| vector | yes | 0.84 | 0.96 | 0.960 | 135 |
-| bm25 | no | 0.80 | 0.94 | 0.913 | 0 |
-| hybrid | no | 0.78 | 0.92 | 0.893 | 15 |
-| hybrid | yes | 0.84 | 0.98 | 0.960 | 260 |
+| mode | rerank | Recall@1 | Recall@5 | MRR | p50 ms | p95 ms |
+|---|---|---|---|---|---|---|
+| vector | no | 0.80 | 0.98 | 0.927 | 24 | 27 |
+| vector | yes | 0.84 | 0.96 | 0.960 | 464 | 590 |
+| bm25 | no | 0.80 | 0.94 | 0.913 | 0 | 0 |
+| bm25 | yes | 0.84 | 0.98 | 0.960 | 550 | 645 |
+| hybrid | no | 0.78 | 0.92 | 0.893 | 34 | 44 |
+| hybrid | yes | 0.84 | 0.98 | 0.960 | 415 | 631 |
 
-**The default stays plain vector search.** On a 15-page document with one topic, vector search already reaches Recall@5 0.98, and hybrid fusion without a reranker made it slightly worse. Reranking puts a correct chunk first more often (MRR 0.93 to 0.96) but costs about 9 to 17 times the latency without raising Recall@5. On a larger corpus full of exact product names or codes, BM25 and the reranker are more likely to pay off, which is why every mode has a committed baseline in `evals/baselines.json`.
+Latency is per retrieval call on a laptop that was busy with other work, so treat it as an order of magnitude: the cross-encoder adds a few hundred milliseconds on CPU, and the same configuration measured 159 ms in another run (`evals/results/contextual.md`).
+
+**The default stays plain vector search.** On a 16-page document with one topic, vector search already reaches Recall@5 0.98, and hybrid fusion without a reranker made it slightly worse. Reranking puts a correct chunk first more often (MRR 0.93 to 0.96) and lifts BM25 and hybrid to Recall@5 0.98, but on top of vector search it costs one page (0.98 to 0.96) and turns a retrieval of tens of milliseconds into hundreds. On a larger corpus full of exact product names or codes, BM25 and the reranker are more likely to pay off, which is why every mode has a committed baseline in `evals/baselines.json`.
 
 ### Contextual chunks
 
@@ -108,6 +112,20 @@ Each chunk costs one LLM call, so the results are cached in `.rag_index/context_
 
 **On this PDF it is a wash.** `evals/results/contextual.md`: with `gemma2:2b` writing the contexts (41 calls, about 25,000 tokens, 57 seconds once), plain vector search moved from Recall@5 0.98 / MRR 0.927 to 0.96 / 0.960, so the right chunk comes first more often but one more page drops out of the top 5; hybrid+rerank stayed at Recall@5 0.98 with MRR 0.960 to 0.950. The notes are short and every page already has clear headings, so there is little missing context to add. It stays off by default. Try it on a longer document whose chunks make no sense without their section.
 
+### Where the time and tokens go
+
+Every `RagResult` has a `trace`. The app shows it in the collapsed **Trace** panel under each answer: milliseconds per stage, prompt and output tokens (Ollama reports them as `prompt_eval_count` and `eval_count`; LangChain exposes them as `usage_metadata`), and the total.
+
+```python
+from rag.pipeline import answer
+r = answer("What is fog computing?")
+print(r.trace.as_markdown())
+```
+
+Local models cost nothing per token. To see what the same traffic would cost on a hosted model, set `RAG_PRICE_PER_1K_TOKENS_IN` and `RAG_PRICE_PER_1K_TOKENS_OUT` to its prices; the trace then shows an estimated cost, labelled as an estimate.
+
+Every results file in `evals/results/` has p50 and p95 latency columns, and the answer reports add per-stage latency and mean tokens per question. Generation dominates. In `evals/results/citations.md`, the median question with `gemma2:2b` spent 20 to 31 ms retrieving and 3.0 s (grounded) to 6.6 s (basic prompt) generating; the grounded prompt is faster because its answers are short (40 output tokens on average against 287).
+
 ### Grounding: answer from the notes or say so
 
 A small model will happily answer "What port does MQTT use?" from its own memory, even though the notes never mention it. The pipeline has three guards against that:
@@ -116,7 +134,7 @@ A small model will happily answer "What port does MQTT use?" from its own memory
 2. **A grounded prompt.** `rag/prompts.py` tells the model to use only the numbered passages, end each factual sentence with its `[n]`, and reply with the exact refusal sentence when the passages do not contain the answer.
 3. **Citations are checked.** `rag/citations.py` keeps only markers that point at a retrieved passage. With `require_citations` on (the default), an answer with no valid citation is replaced by the refusal, because an uncited answer cannot be checked.
 
-`RagResult.refusal_reason` says which guard fired: `low_relevance`, `model` or `no_citations`. Set `RAG_GROUNDED_PROMPT=off` to see the original behaviour. `evals/results/citations.md` compares the two on the golden set. With `gemma2:2b`, grounding took refusals of unanswerable questions from 0 of 5 to 5 of 5 and put a valid citation on all 25 answerable ones, with no false refusals. The price is completeness: judged correctness fell from 0.94 to 0.72, because the shorter grounded answers often name only the items present in the four retrieved chunks, while the basic prompt fills gaps from the model's own knowledge.
+`RagResult.refusal_reason` says which guard fired: `low_relevance`, `model` or `no_citations`. Set `RAG_GROUNDED_PROMPT=off` to see the original behaviour. `evals/results/citations.md` compares the two on the golden set. With `gemma2:2b`, grounding took the refusal sentence on unanswerable questions from 0 of 5 to 5 of 5 and put a valid citation on all 25 answerable ones, with no false refusals. The price is completeness: judged correctness fell from 0.94 to 0.72, because the shorter grounded answers often name only the items present in the four retrieved chunks, while the basic prompt fills gaps from the model's own knowledge. (Under the basic prompt the model declined two unanswerable questions in its own words, "The provided text does not mention...", and talked around the other three; the eval counts only the refusal sentence, so those read as 0 of 5.)
 
 ## Measuring it: evals
 
@@ -161,6 +179,7 @@ Every field of `RagConfig` in `rag/config.py` can be set with an environment var
 | `RAG_K` | `4` | Chunks given to the LLM |
 | `RAG_RETRIEVAL_MODE` | `vector` | `vector`, `bm25` or `hybrid` |
 | `RAG_CONTEXTUAL_CHUNKS` | `off` | Add a model-written context line to every chunk before indexing (`RAG_CONTEXT_MODEL` defaults to the chat model) |
+| `RAG_PRICE_PER_1K_TOKENS_IN` / `_OUT` | `0` / `0` | Hosted-model prices for the trace's cost estimate |
 | `RAG_RERANK` | `off` | Rerank `RAG_CANDIDATE_K` (20) candidates with the cross-encoder `RAG_RERANKER_MODEL` |
 | `RAG_GROUNDED_PROMPT` | `on` | Grounded, cited prompt; `off` uses the original basic prompt |
 | `RAG_REQUIRE_CITATIONS` | `on` | Refuse answers that carry no valid `[n]` citation |

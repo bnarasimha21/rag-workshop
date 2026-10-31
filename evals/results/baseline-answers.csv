@@ -1,14 +1,14 @@
-id,type,question,answer,refused,refusal_reason,valid_citations,cited_pages,retrieved_pages,faithfulness,correctness
+id,type,question,answer,refused,refusal_reason,valid_citations,cited_pages,retrieved_pages,faithfulness,correctness,retrieve_ms,rerank_ms,generate_ms,total_ms,tokens_in,tokens_out
 q01,list,"What are the two broad types of data, based on how they can be accessed and stored?","The two broad types of data, based on how they can be accessed and stored, are:
 
 1. **Structured Data:**  This type has a pre-defined structure and is easily searchable using algorithms or human queries. It's typically found in relational databases (RDBMS) like those used for flight reservations, banking systems, inventory control, etc. 
 2. **Unstructured Data:** This type lacks a predefined structure and can vary depending on the application or data source.  It's often found in forms like text documents, emails, videos, images, phone recordings, chats, sensor data, and more. It's challenging to query due to its lack of fixed formats. 
 
 
-Let me know if you have any other questions!",False,,0,,1 2 2 1,1.000,1.000
+Let me know if you have any other questions!",False,,0,,1 2 2 1,1.000,1.000,18.660,,3254.203,3272.874,597,156
 q02,factoid,"What kind of database systems are structured data associated with, and which language is used to access them?","Structured data is associated with **Relational Database Management Systems (RDBMS)**.  
 
-The language used to access structured data in RDBMS is **Structured Query Language (SQL)**.",False,,0,,2 2 2 1,1.000,1.000
+The language used to access structured data in RDBMS is **Structured Query Language (SQL)**.",False,,0,,2 2 2 1,1.000,1.000,16.828,,1697.546,1714.382,463,39
 q03,factoid,Which querying languages are generally used for unstructured data?,"Let's break down these questions about IoT data management and processing.
 
 **1. What are the different data formats found in IoT network transfer streams?**
@@ -107,7 +107,7 @@ IoT data is often classified based on its **time sensitivity and criticality**:
 
 
 
-Let me know if you'd like to explore any of these topics in more detail!",False,,0,,2 2 2 16,1.000,1.000
+Let me know if you'd like to explore any of these topics in more detail!",False,,0,,2 2 2 16,1.000,1.000,14.970,,32997.975,33012.955,569,1323
 q04,list,Give examples of machine-generated unstructured data.,"Here are some examples of machine-generated unstructured data, categorized for clarity:
 
 **Sensor Data:**
@@ -131,7 +131,7 @@ q04,list,Give examples of machine-generated unstructured data.,"Here are some ex
 * **Machine learning plays a crucial role in processing unstructured data.** Algorithms are trained on patterns and trends within this data to extract insights and make predictions. 
 
 
-Let me know if you'd like more examples or have any other questions!",False,,0,,2 14 2 2,1.000,1.000
+Let me know if you'd like more examples or have any other questions!",False,,0,,2 14 2 2,1.000,1.000,20.454,,9613.673,9634.152,553,309
 q05,list,Into which three categories is IoT data divided based on the urgency of processing?,"Based on the provided context, IoT data is divided into **three** categories based on the urgency of processing:
 
 1. **Very Time Critical:**  Data from sources requiring immediate decision support with extremely low latency (e.g., flight control systems, healthcare). 
@@ -139,7 +139,7 @@ q05,list,Into which three categories is IoT data divided based on the urgency of
 3. **Normal:** Data with a relatively high processing latency tolerance (e.g., agriculture, environmental monitoring).  
 
 
-Let me know if you'd like to explore any of these categories in more detail!",False,,0,,3 4 3 3,1.000,1.000
+Let me know if you'd like to explore any of these categories in more detail!",False,,0,,3 4 3 3,1.000,1.000,23.327,,5039.015,5062.351,514,134
 q06,factoid,"What processing latency can very time critical data tolerate, and what are example sources of it?","Very time-critical data can tolerate **a processing latency in the range of a few milliseconds**. 
 
 Here are some examples of sources that fall under this category:
@@ -149,7 +149,7 @@ Here are some examples of sources that fall under this category:
 * **Emergency response systems:**  Locating the source of a fire or other emergency requires rapid data processing for efficient dispatching of resources.
 
 
-Let me know if you have any more questions!",False,,0,,3 3 4 5,1.000,1.000
+Let me know if you have any more questions!",False,,0,,3 3 4 5,1.000,1.000,20.693,,4923.374,4944.075,545,130
 q07,factoid,"What processing latency can normal data tolerate, and which domains typically produce it?","Normal data can tolerate a **processing latency of a few minutes**. 
 
 Here's what that means in context:
@@ -158,18 +158,18 @@ Here's what that means in context:
 * **Examples:** Think of weather reports, agricultural sensor readings, or environmental monitoring data. 
 
 
-Let me know if you have any other questions!",False,,0,,3 3 5 4,1.000,1.000
+Let me know if you have any other questions!",False,,0,,3 3 5 4,1.000,1.000,15.906,,4191.178,4207.097,541,99
 q08,list,What are the two large processing topologies for IoT?,"The two large processing topologies for IoT are:
 
 1. **On-site Processing**
-2. **Off-site Processing**",False,,0,,4 6 7 5,1.000,1.000
+2. **Off-site Processing**",False,,0,,4 6 7 5,1.000,1.000,15.905,,2212.581,2228.494,538,31
 q09,list,Into which two topologies is off-site processing further divided?,"Off-site processing is further divided into these two topologies:
 
 1. **Remote Processing:**  Data is processed by dedicated devices (e.g., servers, edge computing units) located in a different location than the sensor nodes. 
 2. **Collaborative Processing:** Data is processed by multiple simpler sensor nodes that work together with dedicated high-processing devices to accomplish tasks. 
 
 
-Let me know if you'd like more details on either of these topologies!",False,,0,,4 5 5 11,1.000,1.000
+Let me know if you'd like more details on either of these topologies!",False,,0,,4 5 5 11,1.000,1.000,17.271,,4369.451,4386.732,629,99
 q10,definition,"What does the on-site processing topology mean, and for which applications is it crucial?","## On-Site Processing Topology Explained:
 
 The **on-site processing topology** means that data is processed directly at the source where it originates.  Think of it like this: instead of sending data to a central location for processing, the processing happens right there where the data is generated. 
@@ -188,7 +188,7 @@ This approach is crucial in applications with **extremely low latency requiremen
 * **Flight Control Systems:**  Real-time data from aircraft sensors needs to be processed immediately for safe flight operations. 
 
 
-**In summary:** On-site processing is essential when speed, real-time responsiveness, and low latency are critical factors in an application. It ensures immediate action based on the generated data, making it crucial for applications where time is of the essence.",False,,0,,5 5 7 4,1.000,1.000
+**In summary:** On-site processing is essential when speed, real-time responsiveness, and low latency are critical factors in an application. It ensures immediate action based on the generated data, making it crucial for applications where time is of the essence.",False,,0,,5 5 7 4,1.000,1.000,18.156,,10375.024,10393.189,568,315
 q11,reasoning,Why is off-site processing cheaper than on-site processing?,"The text states that off-site processing is cheaper than on-site processing because **sensor nodes don't need to process data urgently**.  
 
 Here's a breakdown of why:
@@ -197,7 +197,7 @@ Here's a breakdown of why:
 * **Large-scale deployments:**  IoT deployments often involve many sensor nodes spread out over a large area. On-site processing would require expensive infrastructure (like powerful computers) for each node, which is not sustainable for such scale. 
 
 
-Essentially, off-site processing allows for a more efficient use of resources by deferring the processing to a centralized location with dedicated hardware and expertise. This makes it significantly cheaper than having on-site processing at every sensor node.",False,,0,,5 4 10 5,1.000,0.500
+Essentially, off-site processing allows for a more efficient use of resources by deferring the processing to a centralized location with dedicated hardware and expertise. This makes it significantly cheaper than having on-site processing at every sensor node.",False,,0,,5 4 10 5,1.000,0.500,22.137,,6502.071,6524.226,611,185
 q12,reasoning,What is the main drawback of the remote processing topology?,"The main drawback of the remote processing topology is its **reliance on network connectivity**.  
 
 Here's why:
@@ -207,7 +207,7 @@ Here's why:
 * **Infrastructure Dependence:**  Remote processing requires a robust and geographically distributed infrastructure (cloud servers, edge devices) to handle the data volume and processing demands. This infrastructure needs to be maintained and scaled accordingly.
 
 
-While remote processing offers scalability and flexibility, it's crucial to understand its limitations in terms of network dependency and latency.",False,,0,,7 5 6 11,1.000,1.000
+While remote processing offers scalability and flexibility, it's crucial to understand its limitations in terms of network dependency and latency.",False,,0,,7 5 6 11,1.000,1.000,17.397,,6136.427,6153.834,543,175
 q13,reasoning,"In which scenarios is collaborative processing used, and which network type is preferred for it?","Here's a breakdown of when collaborative processing is used and the preferred network type:
 
 **Scenarios where Collaborative Processing is Used:**
@@ -229,7 +229,7 @@ Collaborative processing is a powerful technique that leverages local processing
 * Mesh networks provide a simple, efficient way to implement this topology. 
 
 
-Let me know if you have any other questions!",False,,0,,7 7 6 6,1.000,1.000
+Let me know if you have any other questions!",False,,0,,7 7 6 6,1.000,1.000,17.085,,8991.625,9008.720,452,296
 q14,list,What are the IoT device design and selection considerations?,"Here's a breakdown of the key IoT device design and selection considerations based on your provided context:
 
 **1. Processor Selection:**  This is fundamental! The processor dictates:
@@ -263,7 +263,7 @@ q14,list,What are the IoT device design and selection considerations?,"Here's a 
 
 **In Summary:**
 
-Choosing the right processor is a critical first step in IoT device design. It impacts everything from size and energy consumption to cost, functionality, and long-term sustainability. A thorough understanding of these considerations will help you build efficient, affordable, and impactful IoT solutions.",False,,0,,8 8 9 8,1.000,1.000
+Choosing the right processor is a critical first step in IoT device design. It impacts everything from size and energy consumption to cost, functionality, and long-term sustainability. A thorough understanding of these considerations will help you build efficient, affordable, and impactful IoT solutions.",False,,0,,8 8 9 8,1.000,1.000,34.373,,14643.688,14678.105,655,471
 q15,factoid,What is the most important deciding factor in designing IoT-based sensing solutions?,"Based on the provided context, the most important deciding factor in designing IoT-based sensing solutions is **energy requirements**. 
 
 Here's why:
@@ -272,8 +272,8 @@ Here's why:
 * **Sustainability:** High energy demands lead to frequent battery replacements, which negatively impact the long-term sustainability of the sensing hardware. 
 * **Cost Implications:**  Higher energy requirements translate to higher costs for batteries and power sources, impacting affordability and deployment density.
 
-While other factors like size, cost, and processing power are important considerations, they ultimately depend on how much energy is available and how that energy needs to be managed within the constraints of the sensor node's functionality.",False,,0,,8 8 9 13,1.000,1.000
-q16,factoid,What I/O voltage rating do newer processors have compared to older ones?,"Newer processors have a **meager I/O voltage rating of 3.3 V**, while older processors had a rating of **5 V**.",False,,0,,9 9 8 9,1.000,0.500
+While other factors like size, cost, and processing power are important considerations, they ultimately depend on how much energy is available and how that energy needs to be managed within the constraints of the sensor node's functionality.",False,,0,,8 8 9 13,1.000,1.000,30.632,,6650.679,6681.326,648,176
+q16,factoid,What I/O voltage rating do newer processors have compared to older ones?,"Newer processors have a **meager I/O voltage rating of 3.3 V**, while older processors had a rating of **5 V**.",False,,0,,9 9 8 9,1.000,0.500,30.608,,2717.672,2748.295,617,34
 q17,list,Where can IoT data be offloaded to?,"The provided text outlines several potential locations for offloading IoT data, categorized by their characteristics and capabilities. Here's a breakdown of where IoT data can be offloaded, based on the context you've given:
 
 **1. On-site Processing:**
@@ -337,14 +337,14 @@ The text highlights several factors that influence the choice of offload locatio
 
 
 
-Let me know if you have any other questions!",False,,0,,11 16 15 15,1.000,1.000
+Let me know if you have any other questions!",False,,0,,11 16 15 15,1.000,1.000,26.144,,22218.290,22244.466,549,738
 q18,definition,What is fog computing?,"Fog computing is a decentralized computing infrastructure that sits **between** your IoT devices (the source of data) and the cloud. It's designed to:
 
 * **Conserve network bandwidth:** By processing data locally, it reduces the amount of data that needs to be sent to the cloud. 
 * **Reduce latency:**  Processing data closer to its source minimizes delays in getting results.
 * **Enable rapid mobility support:**  It allows for more efficient and responsive operations when IoT devices are moving around.
 
-Essentially, fog computing brings processing power closer to where the data is generated, making it faster, more efficient, and less reliant on a constant connection to the cloud.",False,,0,,11 11 12 12,1.000,1.000
+Essentially, fog computing brings processing power closer to where the data is generated, making it faster, more efficient, and less reliant on a constant connection to the cloud.",False,,0,,11 11 12 12,1.000,1.000,47.056,,6154.611,6201.745,651,140
 q19,reasoning,What are the disadvantages of offloading processing to a remote server compared to the cloud?,"Here's a breakdown of the disadvantages of offloading processing to a remote server compared to the cloud, based on the provided context:
 
 **1. Scalability Challenges:**
@@ -367,7 +367,7 @@ q19,reasoning,What are the disadvantages of offloading processing to a remote se
 * **Higher Costs for Remote Servers:** Building and maintaining a dedicated remote server infrastructure can be significantly more expensive than utilizing cloud services, especially when considering factors like power consumption, hardware maintenance, and potential downtime.
 
 
-**In Summary:** While offloading processing to a remote server offers advantages in specific scenarios (e.g., resource-constrained IoT devices), it often comes with disadvantages compared to the flexibility and scalability of cloud solutions.",False,,0,,12 10 6 15,1.000,1.000
+**In Summary:** While offloading processing to a remote server offers advantages in specific scenarios (e.g., resource-constrained IoT devices), it often comes with disadvantages compared to the flexibility and scalability of cloud solutions.",False,,0,,12 10 6 15,1.000,1.000,27.216,,11175.048,11202.287,388,366
 q20,list,What are the offload decision making approaches?,"You've provided a great overview of data offloading in IoT! Let's break down the ""Offload Decision Making"" section and explore different approaches.
 
 **Understanding Offload Decision Making**
@@ -426,7 +426,7 @@ To delve deeper into specific offload decision-making techniques, consider explo
 * **Federated Learning:**  A decentralized approach where model training occurs at the edge, reducing data transfer needs.
 
 
-Let me know if you'd like to explore any of these aspects in more detail!",False,,0,,13 13 11 10,1.000,1.000
+Let me know if you'd like to explore any of these aspects in more detail!",False,,0,,13 13 11 10,1.000,1.000,29.003,,26255.509,26284.535,617,857
 q21,reasoning,Why is the naive approach to offload decision making not recommended?,"The naive approach to offload decision-making is not recommended because it's **simplistic and impractical for complex IoT deployments**. 
 
 Here's why:
@@ -438,7 +438,7 @@ Here's why:
 **In essence, the naive approach is like trying to solve a complex puzzle with only basic tools - it simply won't work effectively.**  It lacks the flexibility and intelligence needed for modern IoT deployments where data complexity and dynamic environments are key factors.
 
 
-The text highlights that more sophisticated approaches are necessary to address these challenges, such as bargaining-based or learning-based methods.",False,,0,,13 13 14 11,1.000,1.000
+The text highlights that more sophisticated approaches are necessary to address these challenges, such as bargaining-based or learning-based methods.",False,,0,,13 13 14 11,1.000,1.000,26.329,,9291.154,9317.508,612,272
 q22,definition,What does the bargaining based approach try to achieve?,"The bargaining-based approach in offloading parameters aims to **alleviate network traffic congestion** and **enhance service QoS (quality of service)**. 
 
 Here's a breakdown of how it works:
@@ -447,10 +447,10 @@ Here's a breakdown of how it works:
 * **Optimizes for collective benefit:** The goal is not just to maximize individual device performance but to achieve a better overall service experience for all connected devices. 
 
 
-Essentially, bargaining-based offloading tries to find the sweet spot where everyone benefits from the optimized data flow.",False,,0,,13 14 13 8,1.000,0.500
+Essentially, bargaining-based offloading tries to find the sweet spot where everyone benefits from the optimized data flow.",False,,0,,13 14 13 8,1.000,0.500,35.970,,5578.890,5614.874,613,138
 q23,factoid,What is the most common example of a learning based approach?,"The most common example of a learning based approach mentioned in the text is **machine learning**. 
 
-The passage explicitly states that ""the most common example of a learning based approach is machine learning."" This makes it clear that this type of approach relies on historical data trends to optimize QoS parameters.",False,,0,,14 13 13 2,1.000,1.000
+The passage explicitly states that ""the most common example of a learning based approach is machine learning."" This makes it clear that this type of approach relies on historical data trends to optimize QoS parameters.",False,,0,,14 13 13 2,1.000,1.000,25.246,,3449.026,3474.284,623,61
 q24,list,Which parameters are considered while deciding upon the offloading type?,"The context you provided outlines several key factors that influence offload decision-making in IoT deployments:
 
 **Parameters for Offload Decision Making:**
@@ -465,7 +465,7 @@ q24,list,Which parameters are considered while deciding upon the offloading type
 
 **In summary:**
 
-The offload decision involves balancing the trade-offs between processing power, bandwidth, data volume, criticality of applications, and latency to optimize resource utilization and ensure efficient operation of IoT deployments.",False,,0,,13 15 10 14,1.000,1.000
+The offload decision involves balancing the trade-offs between processing power, bandwidth, data volume, criticality of applications, and latency to optimize resource utilization and ensure efficient operation of IoT deployments.",False,,0,,13 15 10 14,1.000,1.000,15.997,,10966.096,10982.102,627,339
 q25,definition,What is meant by data volume as an offloading consideration?,"Let's break down ""data volume"" in the context of offloading decisions within your IoT deployment.
 
 **What is Data Volume?**
@@ -495,7 +495,7 @@ When making offloading decisions, consider these factors:
 **In Summary:** Data volume is a critical factor when deciding where to offload your IoT data. It directly impacts the resources needed at the offload location, the processing speed, and the overall efficiency of your deployment. 
 
 
-Let me know if you'd like more details on specific offloading strategies or have any other questions!",False,,0,,15 13 11 13,1.000,1.000
+Let me know if you'd like more details on specific offloading strategies or have any other questions!",False,,0,,15 13 11 13,1.000,1.000,19.125,,18079.379,18098.524,628,588
 u01,unanswerable,How much does a Kubernetes cluster cost per hour on AWS?,"The provided text describes different approaches for offloading data processing in IoT applications and doesn't mention anything about the cost of running a Kubernetes cluster on AWS. 
 
 To find out how much a Kubernetes cluster costs per hour on AWS, you need to consult the AWS pricing calculator or documentation.  Here are some resources that can help:
@@ -520,7 +520,7 @@ To find out how much a Kubernetes cluster costs per hour on AWS, you need to con
 * **Utilize managed services:** Leverage AWS managed services like EKS (Elastic Kubernetes Service) to simplify management and potentially reduce costs. 
 
 
-Let me know if you have any other questions about Kubernetes or AWS pricing!",False,,0,,7 5 11 5,0.500,0.000
+Let me know if you have any other questions about Kubernetes or AWS pricing!",False,,0,,7 5 11 5,0.500,0.000,49.752,,9815.872,9865.655,610,296
 u02,unanswerable,What is the default port number of the MQTT protocol?,"The provided text focuses on **processing offloading** in IoT (Internet of Things) applications and discusses different processing topologies. 
 
 Let's break down the key points and address your question about the MQTT protocol:
@@ -551,9 +551,9 @@ The default port number for the MQTT protocol is **1883**.
     * **Energy Efficiency:** Optimize resource utilization by offloading tasks to more powerful servers.
 
 
-Let me know if you have any other questions about processing offloading in IoT or the MQTT protocol!",False,,0,,11 4 6 10,1.000,0.000
-u03,unanswerable,In which year was the LoRaWAN standard first released?,"The provided text does not contain information about the release date of the LoRaWAN standard.  To find that information, you would need to consult other sources like technical documentation or websites dedicated to LoRaWAN technology.",False,,0,,2 8 9 2,0.000,0.000
-u04,unanswerable,Who is the author of these lecture notes?,The provided text does not mention the author's name.,False,,0,,8 1 3 2,0.000,0.000
+Let me know if you have any other questions about processing offloading in IoT or the MQTT protocol!",False,,0,,11 4 6 10,1.000,0.000,22.568,,12402.428,12425.007,598,399
+u03,unanswerable,In which year was the LoRaWAN standard first released?,"The provided text does not contain information about the release date of the LoRaWAN standard.  To find that information, you would need to consult other sources like technical documentation or websites dedicated to LoRaWAN technology.",False,,0,,2 8 9 2,0.000,0.000,34.562,,2920.071,2954.643,589,46
+u04,unanswerable,Who is the author of these lecture notes?,The provided text does not mention the author's name.,False,,0,,8 1 3 2,0.000,0.000,21.083,,1896.951,1918.045,559,15
 u05,unanswerable,How many years does a Raspberry Pi sensor node last on a single battery?,"You can't determine how long a Raspberry Pi sensor node lasts on a single battery without more information. Here's why:
 
 * **Raspberry Pi Model:**  There are multiple Raspberry Pi models (e.g., Raspberry Pi 4, Zero W), each with varying power consumption and battery life. A larger model will generally consume more energy than a smaller one.
@@ -576,4 +576,4 @@ Here are some general guidelines:
 **Remember:** These are just estimates. The actual battery life will vary depending on the specific configuration of your sensor node. 
 
 
-Let me know if you can provide more details about your Raspberry Pi sensor node setup (model, sensors, data transmission frequency), and I might be able to give you a more accurate estimate!",False,,0,,8 5 5 8,1.000,0.000
+Let me know if you can provide more details about your Raspberry Pi sensor node setup (model, sensors, data transmission frequency), and I might be able to give you a more accurate estimate!",False,,0,,8 5 5 8,1.000,0.000,19.169,,12593.304,12612.505,567,385

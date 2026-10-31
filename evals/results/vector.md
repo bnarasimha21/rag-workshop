@@ -1,14 +1,14 @@
 # Retrieval: vector
 
-Generated 2026-10-30 by `evals/`. Golden set: `evals/golden.jsonl`.
+Generated 2026-10-31 by `evals/`. Golden set: `evals/golden.jsonl`.
 
 Config: embeddings `nomic-embed-text`, chat `gemma2:2b`; chunks 800/120; k=4; mode `vector`; rerank off; contextual chunks off.
 
 25 answerable questions.
 
-| config | Recall@1 | Recall@3 | Recall@5 | MRR |
-|---|---|---|---|---|
-| vector | 0.800 | 0.940 | 0.980 | 0.927 |
+| config | Recall@1 | Recall@3 | Recall@5 | MRR | p50 ms | p95 ms |
+|---|---|---|---|---|---|---|
+| vector | 0.800 | 0.940 | 0.980 | 0.927 | 14 | 18 |
 
 <details><summary>Per question</summary>
 
