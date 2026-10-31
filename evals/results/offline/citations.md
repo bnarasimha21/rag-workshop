@@ -17,9 +17,9 @@ Per question, on this machine. Generate time and tokens cover only the questions
 
 | config | retrieve ms p50 / p95 | generate ms p50 / p95 | total ms p50 / p95 | mean tokens in | mean tokens out |
 |---|---|---|---|---|---|
-| before: basic prompt | 0 / 0 | 0 / 0 | 1 / 1 | 392 | 18 |
+| before: basic prompt | 0 / 1 | 0 / 0 | 1 / 1 | 392 | 18 |
 | after: grounded + citations | 0 / 0 | 0 / 0 | 1 / 1 | 493 | 27 |
 
 Per-question rows: `citations-before-answers.csv` and `citations-after-answers.csv`.
 
-Reading the correctness column: the basic prompt writes long answers that mention more of the reference facts, sometimes from the model's own knowledge, and it answers every unanswerable question anyway. The grounded answers are shorter and often list only the items in the four retrieved chunks, so the judge marks them PARTLY. Better retrieval (issue 4) is the fix for that, not a looser prompt: asking the model to name every item did not raise correctness and lowered faithfulness.
+Reading the table: correctness on answerable questions went from 0.475 to 0.523, and the share of unanswerable questions refused went from 100% to 100%. Here the grounded prompt was also more correct.

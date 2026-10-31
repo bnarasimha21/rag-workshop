@@ -61,19 +61,39 @@ def run_baseline(base: RagConfig, offline: bool, judge_provider: str | None, jud
     return str(path)
 
 
+def citations_note(before: dict, after: dict, k: int) -> str:
+    """The "how to read this" paragraph, written from this run's own numbers."""
+    b, a = before["correctness"], after["correctness"]
+    rb, ra = before["refusal_rate_unanswerable"], after["refusal_rate_unanswerable"]
+    text = (f"Reading the table: correctness on answerable questions went from {b:.3f} to {a:.3f}, and the share of "
+            f"unanswerable questions refused went from {rb:.0%} to {ra:.0%}.")
+    if a < b:
+        text += (f" The grounded answers are limited to the {k} retrieved chunks and are usually shorter, so when the "
+                 "reference lists more items than those chunks hold, the judge marks them PARTLY; the basic prompt "
+                 "can fill the gaps from the model's own knowledge.")
+    elif a > b:
+        text += " Here the grounded prompt was also more correct."
+    if rb < 1:
+        text += (" A question counts as refused only when the answer contains the exact refusal sentence, so a model "
+                 "that declines in its own words under the basic prompt is not counted: read the unanswerable rows "
+                 "(ids starting with u) of `citations-before-answers.csv`.")
+    return text
+
+
 def run_citations(base: RagConfig, offline: bool, judge_provider: str | None, judge_model: str | None) -> str:
     """Issue 3: the basic prompt (before) against the grounded, cited prompt (after)."""
     cfg = base.with_overrides(retrieval_mode="vector", rerank=False, contextual_chunks=False)
     items = load_golden()
     judge = make_judge(cfg, judge_provider, judge_model)
     out = results_dir(offline)
-    table_rows, cost_rows = [], []
+    table_rows, cost_rows, summaries = [], [], []
     for label, grounded in (("before: basic prompt", False), ("after: grounded + citations", True)):
         run_cfg = cfg.with_overrides(grounded_prompt=grounded)
         summary, rows = evaluate_answers(run_cfg, items, judge)
         write_csv(rows, out / f"citations-{'after' if grounded else 'before'}-answers.csv")
         table_rows.append(answer_row(label, summary))
         cost_rows.append(cost_row(label, summary))
+        summaries.append(summary)
     path = write_markdown(out / "citations.md", "Grounding and citations (issue 3)", [
         f"Config: {describe(cfg)}. Answers judged by {judge.name}.",
         "Faithfulness is scored only on answered questions. \"Answered with citations\" counts answerable "
@@ -81,11 +101,7 @@ def run_citations(base: RagConfig, offline: bool, judge_provider: str | None, ju
         markdown_table(ANSWER_HEADERS, table_rows),
         cost_section(cost_rows),
         "Per-question rows: `citations-before-answers.csv` and `citations-after-answers.csv`.",
-        "Reading the correctness column: the basic prompt writes long answers that mention more of the reference "
-        "facts, sometimes from the model's own knowledge, and it answers every unanswerable question anyway. "
-        "The grounded answers are shorter and often list only the items in the four retrieved chunks, so the judge "
-        "marks them PARTLY. Better retrieval (issue 4) is the fix for that, not a looser prompt: asking the model to "
-        "name every item did not raise correctness and lowered faithfulness.",
+        citations_note(summaries[0], summaries[1], cfg.k),
     ])
     return str(path)
 
