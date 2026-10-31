@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 
 from langchain_core.messages import HumanMessage, SystemMessage
 
-from rag.citations import Citation, extract_citations, is_refusal_text
+from rag.citations import Citation, extract_citations, is_refusal_text, starts_with_refusal
 from rag.config import RagConfig
 from rag.models import make_chat_model
 from rag.prompts import BASIC_PROMPT, GROUNDED_SYSTEM, GROUNDED_USER, format_passages
@@ -93,7 +93,7 @@ class Pipeline:
             return result
 
         text, citations = extract_citations(result.raw_answer, chunks)
-        if is_refusal_text(text, cfg.refusal_text) and not citations:
+        if (is_refusal_text(text, cfg.refusal_text) and not citations) or starts_with_refusal(text, cfg.refusal_text):
             return self._refuse(result, "model")
         if not citations and cfg.require_citations:
             return self._refuse(result, "no_citations")

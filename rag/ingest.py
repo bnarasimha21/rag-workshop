@@ -134,7 +134,10 @@ def _is_current(path: Path, pdf_hash: str, cfg: RagConfig) -> bool:
     manifest = path / MANIFEST
     if not manifest.exists() or not (path / CHUNKS_FILE).exists():
         return False
-    data = json.loads(manifest.read_text())
+    try:
+        data = json.loads(manifest.read_text())
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return False  # a manifest cut short by a crash: rebuild
     return data.get("pdf_sha256") == pdf_hash and data.get("fingerprint") == cfg.index_fingerprint()
 
 
@@ -189,7 +192,8 @@ def ingest(cfg: RagConfig, force: bool = False) -> IngestReport:
             fh.write(json.dumps({"text": c.page_content, "metadata": c.metadata}) + "\n")
     # The manifest is written last: if embedding fails half way, the next run
     # sees no manifest and rebuilds instead of trusting a partial index.
-    (path / MANIFEST).write_text(json.dumps({
+    tmp = path / (MANIFEST + ".tmp")
+    tmp.write_text(json.dumps({
         "pdf": pdf.name,
         "pdf_sha256": pdf_hash,
         "fingerprint": cfg.index_fingerprint(),
@@ -204,6 +208,7 @@ def ingest(cfg: RagConfig, force: bool = False) -> IngestReport:
         "n_chunks": len(chunks),
         "built_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
     }, indent=2))
+    tmp.replace(path / MANIFEST)  # atomic: the manifest is either whole or absent
     report.seconds = time.perf_counter() - start
     log.info("Embedded and stored %d chunks in %s (%.1fs).", len(chunks), path, report.seconds)
     return report

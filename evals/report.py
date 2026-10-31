@@ -36,13 +36,13 @@ def markdown_table(headers: list[str], rows: list[list]) -> str:
     return "\n".join(lines)
 
 
-def describe(cfg: RagConfig, retrieval: bool = True) -> str:
-    """One line describing a config. ``retrieval=False`` leaves out mode and rerank, for tables that vary them."""
+def describe(cfg: RagConfig, retrieval: bool = True, contextual: bool = True) -> str:
+    """One line describing a config. ``retrieval=False`` / ``contextual=False`` leave out what a table varies."""
     models = "offline stand-ins (hashing embeddings, extractive model)" if cfg.provider == "offline" \
         else f"embeddings `{cfg.embed_model}`, chat `{cfg.chat_model}`"
     mode = f"mode `{cfg.retrieval_mode}`; rerank {'on' if cfg.rerank else 'off'}; " if retrieval else ""
-    return (f"{models}; chunks {cfg.chunk_size}/{cfg.chunk_overlap}; k={cfg.k}; {mode}"
-            f"contextual chunks {'on' if cfg.contextual_chunks else 'off'}")
+    ctx = f"; contextual chunks {'on' if cfg.contextual_chunks else 'off'}" if contextual else ""
+    return f"{models}; chunks {cfg.chunk_size}/{cfg.chunk_overlap}; k={cfg.k}; {mode}".rstrip("; ") + ctx
 
 
 RETRIEVAL_HEADERS = ["config", "Recall@1", "Recall@3", "Recall@5", "MRR", "p50 ms", "p95 ms"]

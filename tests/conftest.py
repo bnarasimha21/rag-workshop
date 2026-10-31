@@ -84,7 +84,6 @@ def subprocess_env(tmp_path):
     env = dict(os.environ)
     env.update({
         "RAG_PROVIDER": "offline",
-        "RAG_MIN_RELEVANCE": "0.08",
         "RAG_INDEX_DIR": str(tmp_path / "idx"),
         "GRADIO_ANALYTICS_ENABLED": "False",
         "PYTHONPATH": str(REPO),

@@ -149,7 +149,7 @@ def run_contextual(base: RagConfig, offline: bool, judge_provider: str | None, j
                          m["recall@5"], m["mrr"], ms(report.p50_ms), ms(report.p95_ms)])
     model = "the offline stand-in" if offline else f"`{base.effective_context_model}`"
     path = write_markdown(results_dir(offline) / "contextual.md", "Contextual chunks (issue 5)", [
-        f"Config: {describe(base, retrieval=False)}. Contexts written by {model}, one call per chunk, "
+        f"Config: {describe(base, retrieval=False, contextual=False)}. Contexts written by {model}, one call per chunk, "
         "with the page as the document.",
         markdown_table(CONTEXTUAL_HEADERS, rows),
         "## One-time ingest cost\n\n" + markdown_table(

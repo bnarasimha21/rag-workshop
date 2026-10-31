@@ -27,7 +27,7 @@ jobs:
           pip install torch --index-url https://download.pytorch.org/whl/cpu
           pip install -r requirements-dev.txt
       - name: Offline test suite
-        run: pytest -m "not realmodel" -q
+        run: python -m pytest -m "not realmodel" -q
       - name: Offline retrieval gates
         run: |
           RAG_RETRIEVAL_MODE=vector python -m evals.retrieval --offline --check-baseline
@@ -57,15 +57,17 @@ jobs:
           ollama pull nomic-embed-text
       - name: Ingest
         run: python -m rag.ingest
+      # Tolerance 0.04 is one question of 25: the baseline was recorded on a Mac,
+      # and CPU inference on Linux can flip a single near-tie.
       - name: Retrieval gate (fails if Recall@5 drops below the committed baseline)
         env:
           RAG_RETRIEVAL_MODE: vector
-        run: python -m evals.retrieval --check-baseline
+        run: python -m evals.retrieval --check-baseline --tolerance 0.04
       - name: Retrieval gate for hybrid search with the cross-encoder reranker
         env:
           RAG_RETRIEVAL_MODE: hybrid
           RAG_RERANK: "on"
-        run: python -m evals.retrieval --check-baseline
+        run: python -m evals.retrieval --check-baseline --tolerance 0.04
 
   answers:
     # Answer quality needs a chat model and an LLM judge: slow and noisy on a

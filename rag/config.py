@@ -23,6 +23,9 @@ RETRIEVAL_MODES = ("vector", "bm25", "hybrid")
 # Bump when ingest changes what it stores (cleaning, prefixes, metadata), so
 # old indexes on disk are rebuilt instead of reused.
 INDEX_FORMAT = 1
+# Bump whenever CONTEXT_PROMPT in rag/contextualize.py changes: it is part of the
+# context cache key and of the fingerprint of contextual indexes.
+CONTEXT_PROMPT_VERSION = 1
 
 _TRUE = {"1", "true", "yes", "on"}
 _FALSE = {"0", "false", "no", "off"}
@@ -122,6 +125,8 @@ class RagConfig:
             "contextual": self.contextual_chunks,
             "context_model": self.effective_context_model if self.contextual_chunks else "",
         }
+        if self.contextual_chunks:
+            relevant["context_prompt"] = CONTEXT_PROMPT_VERSION
         if self.max_pages:  # only when set, so existing full-PDF indexes keep their folder names
             relevant["max_pages"] = self.max_pages
         blob = json.dumps(relevant, sort_keys=True).encode()
@@ -142,6 +147,11 @@ class RagConfig:
             if raw is not None:
                 values[f.name] = _parse(f, raw)
         values.update(overrides)
+        if values.get("provider") == "offline":
+            # RAG_PROVIDER=offline alone must work: the hashing embeddings need
+            # the offline relevance threshold, or every question is refused.
+            for key, value in OFFLINE_DEFAULTS.items():
+                values.setdefault(key, value)
         return cls(**values)
 
 

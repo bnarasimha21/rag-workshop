@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from langchain_core.language_models.fake_chat_models import FakeListChatModel
 
-from rag.citations import extract_citations, is_refusal_text
+from rag.citations import extract_citations, is_refusal_text, starts_with_refusal
 from rag.pipeline import Pipeline
 from rag.prompts import GROUNDED_SYSTEM, format_passages
 from rag.retrievers import Hit
@@ -91,3 +91,40 @@ def test_basic_prompt_has_no_grounding_checks(offline_cfg):
     p = _pipeline_with(offline_cfg, "Anything at all.", grounded_prompt=False, min_relevance=0.99)
     result = p.answer("What is fog computing?")
     assert result.answer == "Anything at all." and not result.refused
+
+
+def test_years_in_brackets_are_not_citations():
+    text, cites = extract_citations("Standardized in [2014], see [1].", hits(3))
+    assert text == "Standardized in [2014], see [1]."
+    assert [c.marker for c in cites] == [1]
+
+
+def test_empty_refusal_text_never_matches():
+    assert not is_refusal_text("Fog computing is decentralized.", "")
+    assert not starts_with_refusal("Fog computing is decentralized.", "")
+
+
+def test_cited_refusal_is_still_a_refusal(offline_cfg):
+    """Small models append [1] to everything, including the refusal sentence."""
+    cfg = offline_cfg()
+    p = _pipeline_with(offline_cfg, cfg.refusal_text + " [1]")
+    result = p.answer("What is fog computing?")
+    assert result.refused and result.refusal_reason == "model"
+    assert result.citations == []
+
+    # An answer that mentions the sentence later, with a citation, is kept.
+    p = _pipeline_with(offline_cfg, f"Fog is decentralized [1]. Beyond that, {cfg.refusal_text.lower()}")
+    assert not p.answer("What is fog computing?").refused
+
+
+def test_eval_counts_a_basic_prompt_refusal(offline_cfg):
+    """The basic prompt has no refusal logic in the pipeline, so the eval must read the text."""
+    from evals.answers import is_refusal
+
+    cfg = offline_cfg(grounded_prompt=False)
+    p = _pipeline_with(offline_cfg, cfg.refusal_text, grounded_prompt=False)
+    result = p.answer("What is fog computing?")
+    assert not result.refused
+    assert is_refusal(cfg, result)
+    p = _pipeline_with(offline_cfg, "Fog is decentralized.", grounded_prompt=False)
+    assert not is_refusal(cfg, p.answer("What is fog computing?"))

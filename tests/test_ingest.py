@@ -94,3 +94,32 @@ def test_ingest_cli_twice(subprocess_env):
     second = subprocess.run(cmd, env=subprocess_env, cwd=REPO, capture_output=True, text=True, timeout=120)
     assert second.returncode == 0, second.stderr
     assert "skipping embedding" in second.stderr
+
+
+def test_truncated_manifest_triggers_a_rebuild(tmp_path):
+    cfg = offline_config(index_dir=tmp_path)
+    first = ingest(cfg)
+    (first.path / "manifest.json").write_text('{"pdf": "3rd mod')  # a crash mid-write
+    again = ingest(cfg)
+    assert not again.skipped and again.n_chunks == first.n_chunks
+    assert ingest(cfg).skipped
+
+
+def test_context_prompt_version_changes_only_contextual_fingerprints(monkeypatch):
+    import rag.config
+
+    plain, ctx = offline_config(), offline_config(contextual_chunks=True)
+    before = plain.index_fingerprint(), ctx.index_fingerprint()
+    monkeypatch.setattr(rag.config, "CONTEXT_PROMPT_VERSION", rag.config.CONTEXT_PROMPT_VERSION + 1)
+    assert plain.index_fingerprint() == before[0]
+    assert ctx.index_fingerprint() != before[1]
+
+
+def test_offline_provider_from_the_environment_gets_offline_defaults():
+    from rag.config import OFFLINE_DEFAULTS, RagConfig
+
+    cfg = RagConfig.from_env({"RAG_PROVIDER": "offline"})
+    assert cfg.min_relevance == OFFLINE_DEFAULTS["min_relevance"]
+    assert cfg.judge_provider == "offline"
+    assert RagConfig.from_env({"RAG_PROVIDER": "offline", "RAG_MIN_RELEVANCE": "0.3"}).min_relevance == 0.3
+    assert RagConfig.from_env({}).min_relevance == RagConfig().min_relevance

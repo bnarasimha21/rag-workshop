@@ -26,6 +26,7 @@ from pathlib import Path
 from evals import GoldenItem, load_golden, results_dir
 from evals.judge import make_judge
 from evals.report import percentile
+from rag.citations import is_refusal_text
 from rag.config import RagConfig, cli_config
 from rag.pipeline import Pipeline
 
@@ -36,10 +37,15 @@ def _mean(values) -> float:
 
 
 def is_refusal(cfg: RagConfig, result) -> bool:
-    refused = getattr(result, "refused", None)
-    if refused is not None:
-        return refused
-    return cfg.refusal_text.lower().rstrip(".") in result.answer.lower()
+    """True if the pipeline refused, or the model wrote the refusal sentence itself.
+
+    The basic prompt has no refusal logic in the pipeline (``refused`` stays
+    False), but it still tells the model to say the refusal sentence, so the
+    text has to be checked too.
+    """
+    if getattr(result, "refused", False):
+        return True
+    return is_refusal_text(result.answer, cfg.refusal_text)
 
 
 def evaluate_answers(cfg: RagConfig, items: list[GoldenItem], judge, pipeline: Pipeline | None = None) -> tuple[dict, list[dict]]:

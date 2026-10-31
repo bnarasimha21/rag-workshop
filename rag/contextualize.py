@@ -26,14 +26,15 @@ from pathlib import Path
 from langchain_core.documents import Document
 from langchain_core.messages import HumanMessage
 
-from rag.config import RagConfig
+from rag.config import CONTEXT_PROMPT_VERSION, RagConfig
 from rag.text import printed_page
 
 log = logging.getLogger("rag.contextualize")
 
-# Bump this whenever CONTEXT_PROMPT changes, so cached contexts written with the
-# old prompt are not reused.
-PROMPT_VERSION = 1
+# Bump CONTEXT_PROMPT_VERSION in rag/config.py whenever CONTEXT_PROMPT changes:
+# cached contexts written with the old prompt are then not reused, and
+# contextual indexes are rebuilt.
+PROMPT_VERSION = CONTEXT_PROMPT_VERSION
 
 # The whole PDF does not fit in a small local model's context window, so the
 # "document" we show the model is the page the chunk came from.

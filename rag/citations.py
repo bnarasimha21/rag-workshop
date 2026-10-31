@@ -5,8 +5,9 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-# [1], [2, 3] and [1][2] are all accepted.
-_MARKER = re.compile(r"\[(\d+(?:\s*,\s*\d+)*)\]")
+# [1], [2, 3] and [1][2] are all accepted. Only one- and two-digit numbers
+# count as markers, so a year such as [2014] is left alone.
+_MARKER = re.compile(r"\[(\d{1,2}(?:\s*,\s*\d{1,2})*)\]")
 
 
 @dataclass
@@ -41,6 +42,19 @@ def extract_citations(answer: str, chunks) -> tuple[str, list[Citation]]:
     return cleaned, list(cited.values())
 
 
+def _norm(s: str) -> str:
+    return re.sub(r"\s+", " ", re.sub(r"[^a-z0-9 ]", "", s.lower())).strip()
+
+
 def is_refusal_text(answer: str, refusal: str) -> bool:
-    norm = lambda s: re.sub(r"[^a-z0-9 ]", "", s.lower()).strip()
-    return norm(refusal) in norm(answer)
+    """True if the answer contains the refusal sentence anywhere."""
+    return bool(_norm(refusal)) and _norm(refusal) in _norm(answer)
+
+
+def starts_with_refusal(answer: str, refusal: str) -> bool:
+    """True if the answer opens with the refusal sentence, citation markers ignored.
+
+    Small models often put a [1] after everything, including "I could not find
+    the answer". An answer that starts by refusing is a refusal, cited or not.
+    """
+    return bool(_norm(refusal)) and _norm(_MARKER.sub("", answer)).startswith(_norm(refusal))
